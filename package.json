@@ -1,0 +1,10 @@
+{
+  "name": "agri-doc-ai",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@8",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build"
+  }
+}
