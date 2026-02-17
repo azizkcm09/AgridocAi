@@ -1,16 +1,106 @@
+// apps/api/prisma/schema.prisma
+
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  
 }
 
 datasource db {
   provider = "postgresql"
-  // ❌ REMOVED: url = env("DATABASE_URL")
+
 }
+
+// --- ENUMS ---
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  REVIEW_REQUIRED
+  VALIDATED
+  REJECTED
+  ERROR
+}
+
+enum DocumentType {
+  INVOICE
+  CERTIFICATE
+  REPORT
+  UNKNOWN
+}
+
+enum AuditAction {
+  UPLOAD
+  AUTO_EXTRACT
+  UPDATE_FIELD
+  VALIDATE_DOC
+  DELETE_DOC
+  EXPORT
+}
+
+// --- MODELS (The Entities) ---
 
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String
+  password  String   // Hashed
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  documents Document[]
+  auditLogs AuditLog[]
+}
+
+model Document {
+  id           String         @id @default(uuid())
+  originalName String
+  storagePath  String         // Path to file in storage (local or S3)
+  mimeType     String         // e.g., "application/pdf"
+  size         Int            // In bytes
+  
+  status       DocumentStatus @default(PENDING)
+  type         DocumentType   @default(UNKNOWN)
+
+  // Relations
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  
+  extractedData ExtractedData? // 1:1 Relation (One doc has one extraction result)
+  auditLogs     AuditLog[]     // 1:N Relation (One doc has history)
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model ExtractedData {
+  id         String   @id @default(uuid())
+  
+  // 🔥 POWER MOVE: Store dynamic fields as JSON. 
+  // This allows you to store "Vendor", "Total", "Date" for Invoices
+  // AND "Certificate Number", "Expiry" for Certificates without changing the schema.
+  payload    Json     
+  
+  confidence Float    @default(0.0) // Overall AI confidence score
+
+  // Relations
+  documentId String   @unique
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  action      AuditAction
+  description String?     // e.g., "User changed total from 500 to 520"
+
+  // Relations
+  userId      String?     // Optional (System might do actions too)
+  user        User?       @relation(fields: [userId], references: [id])
+  
+  documentId  String
+  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  timestamp   DateTime    @default(now())
 }
