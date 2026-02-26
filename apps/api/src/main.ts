@@ -19,7 +19,7 @@ async function bootstrap() {
   // 3. Setup the Swagger UI at "http://localhost:3000/api"
   SwaggerModule.setup('api', app, document);
 
- 
+ app.enableCors();
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
