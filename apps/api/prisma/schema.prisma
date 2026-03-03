@@ -1,8 +1,6 @@
-// apps/api/prisma/schema.prisma
 
 generator client {
-  provider        = "prisma-client-js"
-  
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -54,7 +52,7 @@ model User {
 model Document {
   id           String         @id @default(uuid())
   originalName String
-  storagePath  String         // Path to file in storage (local or S3)
+  storagePath  String         // Path to file in storage (local or S3/MinIO)
   mimeType     String         // e.g., "application/pdf"
   size         Int            // In bytes
   
@@ -75,9 +73,7 @@ model Document {
 model ExtractedData {
   id         String   @id @default(uuid())
   
-  // 🔥 POWER MOVE: Store dynamic fields as JSON. 
-  // This allows you to store "Vendor", "Total", "Date" for Invoices
-  // AND "Certificate Number", "Expiry" for Certificates without changing the schema.
+  // Dynamic JSON payload for varying document types
   payload    Json     
   
   confidence Float    @default(0.0) // Overall AI confidence score
@@ -94,6 +90,10 @@ model AuditLog {
   id          String      @id @default(uuid())
   action      AuditAction
   description String?     // e.g., "User changed total from 500 to 520"
+
+  // --- ADDED FOR HITL DATA VERSIONING ---
+  oldValue    Json?       
+  newValue    Json?       
 
   // Relations
   userId      String?     // Optional (System might do actions too)
