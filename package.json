@@ -5,6 +5,7 @@
   "packageManager": "pnpm@8",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "ai:dev": "cd apps/ai && PYTHONPATH=app .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
   }
 }

@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNumber, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
+import { DocumentType } from '@prisma/client';
 
 export class CreateDocumentDto {
   @ApiProperty({ example: 'invoice-january.pdf', description: 'The original name of the file' })
@@ -21,4 +22,9 @@ export class CreateDocumentDto {
   @IsNumber()
   @IsNotEmpty()
   size: number;
+
+  @ApiPropertyOptional({ enum: DocumentType, example: 'INVOICE', description: 'Document type for AI extraction routing' })
+  @IsOptional()
+  @IsEnum(DocumentType)
+  type?: DocumentType;
 }

@@ -26,7 +26,7 @@ export class DocumentsService {
         mimeType: dto.mimeType,
         size: dto.size,
         status: 'PENDING',
-        type: 'UNKNOWN',
+        type: dto.type ?? 'UNKNOWN',
       },
     });
 
