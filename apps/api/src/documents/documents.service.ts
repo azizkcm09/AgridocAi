@@ -4,12 +4,15 @@ import { AuditService } from '../audit/audit.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { BadRequestException } from '@nestjs/common';
 import { getPayloadSchema } from './dto/extraction.schema';
+import type { Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq/dist/decorators/inject-queue.decorator';
 
 @Injectable()
 export class DocumentsService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService, // Injecting the Audit Service we built earlier
+    @InjectQueue('document-processing') private documentQueue: Queue,
   ) {}
 
   // --- CREATE: Save metadata after MinIO upload ---
@@ -33,6 +36,11 @@ export class DocumentsService {
       documentId: document.id,
       action: 'UPLOAD',
       description: `User synced uploaded file: ${dto.originalName}`,
+    });
+    await this.documentQueue.add('extract-data', {
+      documentId: document.id,
+      storagePath: document.storagePath,
+      userId: userId,
     });
 
     return document;

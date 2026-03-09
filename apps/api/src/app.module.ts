@@ -7,9 +7,15 @@ import { PrismaModule } from './prisma/prisma.module';
 import { DocumentsModule } from './documents/documents.module';
 import { StorageModule } from './storage/storage.module';
 import { AuditModule } from './audit/audit.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
-  imports: [UsersModule, AuthModule, PrismaModule, DocumentsModule, StorageModule, AuditModule],
+  imports: [UsersModule, AuthModule, PrismaModule, DocumentsModule, StorageModule, AuditModule,BullModule.forRoot({
+      connection: {
+        host: 'localhost', 
+        port: 6379,
+      },
+    })],
   controllers: [AppController],
   providers: [AppService],
 })
