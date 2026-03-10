@@ -46,12 +46,33 @@ export class DocumentsService {
     return document;
   }
 
-  // --- READ: List all documents for a user ---
-  async findAll(userId: string) {
-    return this.prisma.document.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+  // --- READ: List documents with server-side pagination + filters ---
+  async findAll(
+    userId: string,
+    page: number = 1,
+    limit: number = 8,
+    type?: string,
+    status?: string,
+    search?: string,
+  ) {
+    // Build the WHERE clause dynamically based on which filters were provided
+    const where: any = { userId };
+    if (type)   where.type   = type;
+    if (status) where.status = status;
+    if (search) where.originalName = { contains: search, mode: 'insensitive' };
+
+    // Run both queries at the same time: one for the page data, one for the total count
+    const [data, total] = await Promise.all([
+      this.prisma.document.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,  // how many rows to skip before this page
+        take: limit,                // how many rows to return
+      }),
+      this.prisma.document.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   // --- READ: Get specific document details ---

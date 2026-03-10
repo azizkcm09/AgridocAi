@@ -1,12 +1,13 @@
-import { 
-  Controller, 
-  Get, 
+import {
+  Controller,
+  Get,
   Post,
-  Patch, 
-  Body, 
-  Param, 
-  UseGuards, 
-  Req 
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Req
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -28,12 +29,26 @@ export class DocumentsController {
     return this.documentsService.createDocument(req.user.userId, createDocumentDto);
   }
 
-  // --- 2. READ: List all documents ---
+  // --- 2. READ: List documents with pagination + filters ---
   @Get()
-  @ApiOperation({ summary: 'List all user documents' })
-  findAll(@Req() req: any) {
-    // Passes the exact userId to the service to fix Error 1
-    return this.documentsService.findAll(req.user.userId);
+  @ApiOperation({ summary: 'List user documents with pagination and filters' })
+  findAll(
+    @Req() req: any,
+    @Query('page')   page?:   string,
+    @Query('limit')  limit?:  string,
+    @Query('type')   type?:   string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    // Query params arrive as strings — convert page and limit to numbers
+    return this.documentsService.findAll(
+      req.user.userId,
+      page   ? parseInt(page)  : 1,
+      limit  ? parseInt(limit) : 8,
+      type,
+      status,
+      search,
+    );
   }
 
   // --- 3. READ: Get one document ---
