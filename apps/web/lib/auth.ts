@@ -19,3 +19,16 @@ export function clearToken(): void {
 export function isAuthenticated(): boolean {
   return getToken() !== null;
 }
+
+// Decode email from the JWT payload (no extra library needed)
+// JWT = header.payload.signature — payload is base64url-encoded JSON
+export function getUserEmail(): string | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.email ?? null;
+  } catch {
+    return null;
+  }
+}
