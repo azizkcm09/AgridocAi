@@ -45,16 +45,18 @@ const NAV_ITEMS = [
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [email, setEmail] = useState<string | null>(null);
+  const [email, setEmail]     = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // Auth guard: runs once when the component mounts in the browser
+  // useEffect only runs in the browser, never on the server.
+  // We set mounted=true here so the server and client first render both return null,
+  // preventing the hydration mismatch React was complaining about.
   useEffect(() => {
+    setMounted(true);
     if (!isAuthenticated()) {
-      // No token → kick the user back to login
       router.replace('/login');
       return;
     }
-    // Decode and display the user's email from the JWT
     setEmail(getUserEmail());
   }, [router]);
 
@@ -63,9 +65,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     router.push('/login');
   }
 
-  // While checking auth (before useEffect runs), render nothing
-  // This prevents a flash of the dashboard before redirecting
-  if (!isAuthenticated()) return null;
+  // Return null until the browser has mounted — matches the server render exactly
+  if (!mounted) return null;
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
