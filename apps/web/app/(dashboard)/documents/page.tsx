@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -27,49 +27,69 @@ export default function DocumentsPage() {
   const router = useRouter();
 
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [total, setTotal]         = useState(0);
   const [loading, setLoading]     = useState(true);
 
-  // Filter state
-  const [search, setSearch]       = useState('');
+  // Filter + pagination state
+  const [search, setSearch]             = useState('');
   const [typeFilter, setTypeFilter]     = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [page, setPage]                 = useState(1);
 
-  // Pagination state
-  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  useEffect(() => {
-    api.get('/documents')
-      .then((res) => setDocuments(res.data))
-      .catch(() => router.push('/login'))
-      .finally(() => setLoading(false));
+  // fetchDocuments is called every time page or filters change
+  // useCallback prevents it from being recreated on every render
+  const fetchDocuments = useCallback(async (
+    currentPage: number,
+    currentSearch: string,
+    currentType: string,
+    currentStatus: string,
+  ) => {
+    setLoading(true);
+    try {
+      // Build query string — only include filters that are actually set
+      const params = new URLSearchParams();
+      params.set('page',  String(currentPage));
+      params.set('limit', String(PAGE_SIZE));
+      if (currentSearch)              params.set('search', currentSearch);
+      if (currentType   !== 'ALL')    params.set('type',   currentType);
+      if (currentStatus !== 'ALL')    params.set('status', currentStatus);
+
+      // GET /documents?page=1&limit=8&type=INVOICE&...
+      const res = await api.get(`/documents?${params.toString()}`);
+      setDocuments(res.data.data);   // the page of results
+      setTotal(res.data.total);      // total matching rows (for page count)
+    } catch {
+      router.push('/login');
+    } finally {
+      setLoading(false);
+    }
   }, [router]);
 
-  // --- Client-side filtering ---
-  // Every time search/filters change, reset to page 1
-  const filtered = documents.filter((doc) => {
-    const matchesSearch = doc.originalName.toLowerCase().includes(search.toLowerCase());
-    const matchesType   = typeFilter   === 'ALL' || doc.type   === typeFilter;
-    const matchesStatus = statusFilter === 'ALL' || doc.status === statusFilter;
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  // Re-fetch whenever page, search, type, or status changes
+  useEffect(() => {
+    fetchDocuments(page, search, typeFilter, statusFilter);
+  }, [page, search, typeFilter, statusFilter, fetchDocuments]);
 
-  // Slice the filtered list for the current page
-  const totalPages  = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
+  // When filters change, always go back to page 1
   function handleSearchChange(value: string) {
     setSearch(value);
-    setPage(1); // reset to first page on new search
+    setPage(1);
+  }
+  function handleTypeChange(value: string) {
+    setTypeFilter(value);
+    setPage(1);
+  }
+  function handleStatusChange(value: string) {
+    setStatusFilter(value);
+    setPage(1);
   }
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-GB', {
       year: 'numeric', month: '2-digit', day: '2-digit',
     });
-  }
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>;
   }
 
   return (
@@ -81,7 +101,6 @@ export default function DocumentsPage() {
       {/* ── FILTERS ── */}
       <div className="flex items-center gap-3">
 
-        {/* Search input */}
         <div className="relative flex-1 max-w-md">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,10 +116,9 @@ export default function DocumentsPage() {
           />
         </div>
 
-        {/* Document type filter */}
         <select
           value={typeFilter}
-          onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+          onChange={(e) => handleTypeChange(e.target.value)}
           className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="ALL">Document Type: All</option>
@@ -110,10 +128,9 @@ export default function DocumentsPage() {
           <option value="UNKNOWN">Unknown</option>
         </select>
 
-        {/* Status filter */}
         <select
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          onChange={(e) => handleStatusChange(e.target.value)}
           className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="ALL">Status: All</option>
@@ -142,51 +159,40 @@ export default function DocumentsPage() {
             </tr>
           </thead>
           <tbody>
-            {paginated.length === 0 ? (
+            {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">
-                  No documents found.
-                </td>
+                <td colSpan={6} className="text-center py-12 text-gray-400">Loading...</td>
+              </tr>
+            ) : documents.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-12 text-gray-400">No documents found.</td>
               </tr>
             ) : (
-              paginated.map((doc) => (
+              documents.map((doc) => (
                 <tr
                   key={doc.id}
                   onClick={() => router.push(`/documents/${doc.id}`)}
                   className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
-                  {/* Checkbox — stop propagation so clicking it doesn't navigate */}
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" className="rounded" />
                   </td>
-
-                  {/* File name — blue link style */}
                   <td className="px-4 py-3 text-blue-600 font-medium max-w-xs truncate">
                     {doc.originalName}
                   </td>
-
-                  {/* Type — capitalize and remove underscores */}
                   <td className="px-4 py-3 text-gray-600 capitalize">
                     {doc.type.charAt(0) + doc.type.slice(1).toLowerCase()}
                   </td>
-
-                  {/* Date */}
                   <td className="px-4 py-3 text-gray-600">
                     {formatDate(doc.createdAt)}
                   </td>
-
-                  {/* Status badge */}
                   <td className="px-4 py-3">
                     <span className={`px-2.5 py-1 rounded-full text-xs ${STATUS_COLORS[doc.status] ?? 'bg-gray-100 text-gray-600'}`}>
                       {doc.status.charAt(0) + doc.status.slice(1).toLowerCase().replace(/_/g, ' ')}
                     </span>
                   </td>
-
-                  {/* Actions menu placeholder */}
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <button className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded">
-                      ⋮
-                    </button>
+                    <button className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded">⋮</button>
                   </td>
                 </tr>
               ))
@@ -198,7 +204,7 @@ export default function DocumentsPage() {
       {/* ── PAGINATION ── */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-gray-500">
-          <span>Page {page} of {totalPages}</span>
+          <span>Page {page} of {totalPages} · {total} total</span>
           <div className="flex gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}

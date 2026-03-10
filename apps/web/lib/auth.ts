@@ -6,7 +6,9 @@ export function setToken(token: string): void {
 }
 
 // Read token (returns null if not logged in)
+// typeof window check: localStorage doesn't exist on the server (Next.js SSR)
 export function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
   return localStorage.getItem(TOKEN_KEY);
 }
 

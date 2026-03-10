@@ -55,7 +55,7 @@ export default function DashboardPage() {
           api.get('/documents'),
           api.get('/audit/recent'),
         ]);
-        setDocuments(docsRes.data);
+        setDocuments(docsRes.data.data); // { data: [...], total: N }
         setAuditLogs(auditRes.data);
       } catch {
         router.push('/login');
@@ -105,7 +105,7 @@ export default function DashboardPage() {
       setUploadMsg('✓ Document uploaded and queued for AI extraction.');
       // Refresh stats
       const docsRes = await api.get('/documents');
-      setDocuments(docsRes.data);
+      setDocuments(docsRes.data.data);
     } catch {
       setUploadMsg('Upload failed. Please try again.');
     } finally {
