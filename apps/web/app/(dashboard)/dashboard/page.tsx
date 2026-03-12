@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import api from '@/lib/api';
 import axios from 'axios';
 
@@ -16,7 +17,8 @@ type AuditLog = {
   id: string;
   action: string;
   timestamp: string;
-  document: { originalName: string };
+  documentId: string | null;
+  document: { originalName: string } | null;
 };
 
 const DOC_TYPES = [
@@ -160,12 +162,15 @@ export default function DashboardPage() {
           <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.total ?? 0}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
+        <div
+          onClick={() => router.push('/documents?status=REVIEW_REQUIRED')}
+          className="bg-white rounded-xl border border-gray-100 p-5 hover:border-yellow-200 cursor-pointer transition-colors"
+        >
           <p className="text-sm text-gray-500">Pending Review</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.pendingReview ?? 0}</p>
           {(stats?.pendingReview ?? 0) > 0 && (
             <span className="inline-block mt-2 px-2 py-0.5 text-xs rounded bg-yellow-50 text-yellow-700 border border-yellow-200">
-              REVIEW_REQUIRED
+              Needs attention
             </span>
           )}
         </div>
@@ -231,19 +236,32 @@ export default function DashboardPage() {
 
         {/* Audit logs — 2/5 width */}
         <div className="col-span-2 bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm font-medium text-gray-700 mb-4">Recent Audit Logs</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium text-gray-700">Recent Audit Logs</p>
+            <Link href="/audit" className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
+              View all
+            </Link>
+          </div>
 
           {auditLogs.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">No recent activity.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-1">
               {auditLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-3">
+                <div
+                  key={log.id}
+                  onClick={() => log.documentId && router.push(`/documents/${log.documentId}`)}
+                  className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
+                    log.documentId ? 'hover:bg-gray-50 cursor-pointer' : ''
+                  }`}
+                >
                   <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${auditIconStyle(log.action)}`}>
                     {auditIconChar(log.action)}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 truncate">{log.document?.originalName}</p>
+                    <p className="text-sm text-gray-800 truncate">
+                      {log.document?.originalName ?? <span className="text-gray-400 italic">Deleted document</span>}
+                    </p>
                     <p className="text-xs text-gray-400 capitalize">{log.action.toLowerCase().replace(/_/g, ' ')}</p>
                   </div>
                   <span className="shrink-0 text-xs text-gray-400">{formatTimeAgo(log.timestamp)}</span>
