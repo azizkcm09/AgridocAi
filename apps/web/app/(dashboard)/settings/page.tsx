@@ -2,31 +2,69 @@
 
 import { useEffect, useState } from 'react';
 import { getUserEmail } from '@/lib/auth';
+import api from '@/lib/api';
+
+type HealthStatus = {
+  database: 'connected' | 'disconnected';
+  ai: 'connected' | 'disconnected';
+};
 
 export default function SettingsPage() {
-  const [email, setEmail] = useState<string | null>(null);
+  const [email, setEmail]       = useState<string | null>(null);
+  const [health, setHealth]     = useState<HealthStatus | null>(null);
+  const [checking, setChecking] = useState(true);
 
-  // getUserEmail() reads from localStorage — must run in the browser, not on the server
+  function checkHealth() {
+    setChecking(true);
+    api.get('/health')
+      .then((res) => setHealth(res.data))
+      .catch(() => setHealth({ database: 'disconnected', ai: 'disconnected' }))
+      .finally(() => setChecking(false));
+  }
+
   useEffect(() => {
     setEmail(getUserEmail());
+    checkHealth();
   }, []);
+
+  function StatusBadge({ status }: { status: 'connected' | 'disconnected' | 'checking' }) {
+    if (status === 'checking') {
+      return (
+        <span className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+          Checking...
+        </span>
+      );
+    }
+    if (status === 'connected') {
+      return (
+        <span className="flex items-center gap-1.5 text-sm text-green-600 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          Connected
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5">
+        <span className="w-2 h-2 rounded-full bg-red-500" />
+        Disconnected
+      </span>
+    );
+  }
 
   return (
     <div className="space-y-6">
 
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage your account preferences.</p>
+        <p className="text-sm text-gray-500 mt-1">Manage your account and monitor system health.</p>
       </div>
 
       {/* Account section */}
       <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
-
         <div className="p-5">
           <h2 className="text-sm font-semibold text-gray-800">Account</h2>
         </div>
 
-        {/* Email row */}
         <div className="p-5 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-700">Email address</p>
@@ -37,7 +75,6 @@ export default function SettingsPage() {
           </span>
         </div>
 
-        {/* Role row */}
         <div className="p-5 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-700">Role</p>
@@ -47,14 +84,19 @@ export default function SettingsPage() {
             Operator
           </span>
         </div>
-
       </div>
 
-      {/* System section */}
+      {/* System health section — real checks */}
       <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
-
-        <div className="p-5">
-          <h2 className="text-sm font-semibold text-gray-800">System</h2>
+        <div className="p-5 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">System Health</h2>
+          <button
+            onClick={checkHealth}
+            disabled={checking}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors disabled:opacity-50"
+          >
+            {checking ? 'Checking...' : 'Refresh'}
+          </button>
         </div>
 
         <div className="p-5 flex items-center justify-between">
@@ -62,9 +104,15 @@ export default function SettingsPage() {
             <p className="text-sm font-medium text-gray-700">API</p>
             <p className="text-xs text-gray-400 mt-0.5">NestJS backend</p>
           </div>
-          <span className="text-sm text-green-600 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
-            Connected
-          </span>
+          <StatusBadge status={health ? 'connected' : (checking ? 'checking' : 'disconnected')} />
+        </div>
+
+        <div className="p-5 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Database</p>
+            <p className="text-xs text-gray-400 mt-0.5">PostgreSQL via Prisma</p>
+          </div>
+          <StatusBadge status={checking ? 'checking' : (health?.database ?? 'disconnected')} />
         </div>
 
         <div className="p-5 flex items-center justify-between">
@@ -72,23 +120,36 @@ export default function SettingsPage() {
             <p className="text-sm font-medium text-gray-700">AI Service</p>
             <p className="text-xs text-gray-400 mt-0.5">FastAPI OCR worker</p>
           </div>
-          <span className="text-sm text-green-600 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
-            Connected
+          <StatusBadge status={checking ? 'checking' : (health?.ai ?? 'disconnected')} />
+        </div>
+      </div>
+
+      {/* About section */}
+      <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
+        <div className="p-5">
+          <h2 className="text-sm font-semibold text-gray-800">About</h2>
+        </div>
+
+        <div className="p-5 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Version</p>
+            <p className="text-xs text-gray-400 mt-0.5">Current application version</p>
+          </div>
+          <span className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+            1.0.0
           </span>
         </div>
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">Storage</p>
-            <p className="text-xs text-gray-400 mt-0.5">MinIO S3-compatible</p>
+            <p className="text-sm font-medium text-gray-700">Stack</p>
+            <p className="text-xs text-gray-400 mt-0.5">Core technologies</p>
           </div>
-          <span className="text-sm text-green-600 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
-            Connected
+          <span className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+            Next.js + NestJS + FastAPI
           </span>
         </div>
-
       </div>
-
     </div>
   );
 }
