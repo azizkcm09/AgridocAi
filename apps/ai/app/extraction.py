@@ -1,81 +1,148 @@
+"""
+Field extraction — sends OCR text to the LLM and parses the JSON response.
+
+Before (regex):  brittle patterns that only worked for invoices.
+After  (LLM):    prompt engineering handles all doc types, OCR noise, and layout variations.
+
+Flow:
+  1. get_prompt() builds the right prompt for the document type
+  2. ask() sends it to Groq (Llama 3.3 70B)
+  3. We parse the JSON response and compute a confidence score
+"""
+
+import json
+import logging
 import re
-from typing import Optional
+
+from llm import ask
+from prompts import get_prompt
+
+logger = logging.getLogger(__name__)
+
+# Expected fields per document type — used for confidence scoring.
+# Each field has a weight (%) reflecting its importance for that doc type.
+FIELD_WEIGHTS = {
+    "INVOICE": {
+        "vendorName": 20,
+        "buyerName": 10,
+        "invoiceNumber": 10,
+        "invoiceDate": 15,
+        "totalAmount": 25,
+        "currency": 10,
+        "lineItems": 10,
+    },
+    "CERTIFICATE": {
+        "certificateType": 15,
+        "certificateNumber": 15,
+        "issuingAuthority": 15,
+        "holderName": 15,
+        "issueDate": 15,
+        "expiryDate": 10,
+        "productsCovered": 10,
+        "status": 5,
+    },
+    "REPORT": {
+        "reportTitle": 15,
+        "reportNumber": 10,
+        "authorOrLab": 15,
+        "reportDate": 15,
+        "subjectProduct": 15,
+        "conclusion": 20,
+        "keyFindings": 10,
+    },
+    "UNKNOWN": {
+        "detectedType": 20,
+        "title": 20,
+        "date": 20,
+        "organization": 20,
+        "summary": 20,
+    },
+}
 
 
-VENDOR_PATTERNS = [
-    r"(?:vendor|supplier|from|billed\s+by|sold\s+by)[:\s]+([A-Za-z0-9\s&.,'\-]{3,60})",
-    r"(?:company|firm|business)[:\s]+([A-Za-z0-9\s&.,'\-]{3,60})",
-]
+def _compute_confidence(payload: dict, document_type: str) -> float:
+    """
+    Score how complete the extraction is (0–100).
 
-AMOUNT_PATTERNS = [
-    r"(?:grand\s+total|total\s+amount\s+due|amount\s+due|total\s+due|total)[:\s]*[$€£]?\s*([\d,]+(?:\.\d{2})?)",
-    r"(?:invoice\s+total|balance\s+due)[:\s]*[$€£]?\s*([\d,]+(?:\.\d{2})?)",
-]
+    Each expected field has a weight. If the LLM returned a non-null value
+    for that field, its weight counts toward the total confidence.
 
-DATE_PATTERNS = [
-    r"(?:invoice\s+date|date\s+of\s+invoice|date)[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})",
-    r"(?:invoice\s+date|date)[:\s]+(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4})",
-]
-
-CURRENCY_PATTERNS = [
-    r"\b(USD|EUR|GBP|CHF|CAD|AUD|DZD|MAD|TND)\b",
-    r"(?:currency)[:\s]+([A-Z]{3})",
-]
-
-
-def _first_match(text: str, patterns: list) -> Optional[str]:
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    return None
-
-
-def _parse_amount(raw: Optional[str]) -> Optional[float]:
-    if not raw:
-        return None
-    try:
-        return float(raw.replace(",", ""))
-    except ValueError:
-        return None
-
-
-def _confidence(fields: dict) -> float:
-    weights = {
-        "vendorName":  30.0,
-        "totalAmount": 40.0,
-        "invoiceDate": 20.0,
-        "currency":    10.0,
-    }
-    score = sum(w for f, w in weights.items() if fields.get(f) is not None)
+    Example: an invoice with vendorName + totalAmount + currency filled
+    but missing invoiceDate = 20 + 25 + 10 = 55%.
+    """
+    weights = FIELD_WEIGHTS.get(document_type.upper(), FIELD_WEIGHTS["UNKNOWN"])
+    score = 0.0
+    for field, weight in weights.items():
+        value = payload.get(field)
+        # Consider a field "filled" if it's not None/null and not empty
+        if value is not None and value != "" and value != []:
+            score += weight
     return round(score, 2)
 
 
-def extract_invoice_fields(text: str) -> tuple:
-    vendor   = _first_match(text, VENDOR_PATTERNS)
-    amount   = _parse_amount(_first_match(text, AMOUNT_PATTERNS))
-    date     = _first_match(text, DATE_PATTERNS)
-    currency = _first_match(text, CURRENCY_PATTERNS)
+def _parse_llm_response(raw_response: str) -> dict:
+    """
+    Parse the LLM's text response into a Python dict.
 
-    if not currency:
-        if "$" in text: currency = "USD"
-        elif "€" in text: currency = "EUR"
-        elif "£" in text: currency = "GBP"
+    Handles edge cases:
+      - LLM wraps JSON in ```json ... ``` markdown fences
+      - LLM adds explanation text before/after the JSON
+      - LLM returns invalid JSON (falls back to empty dict)
+    """
+    text = raw_response.strip()
 
-    fields = {
-        "vendorName":  vendor,
-        "totalAmount": amount,
-        "invoiceDate": date,
-        "currency":    currency,
-    }
+    # Strip markdown code fences if present: ```json ... ```
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
 
-    confidence = _confidence(fields)
-    payload = {k: v for k, v in fields.items() if v is not None}
+    # Try to find JSON object in the response
+    # Look for the first { and last } to extract the JSON block
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1:
+        text = text[start:end + 1]
 
-    return payload, confidence
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse LLM response as JSON: {e}")
+        logger.debug(f"Raw response was: {raw_response[:500]}")
+        return {}
 
 
 def extract_fields(document_type: str, text: str) -> tuple:
-    if document_type.upper() == "INVOICE":
-        return extract_invoice_fields(text)
-    return {"raw": text[:500]}, 0.0
+    """
+    Main extraction function — called by main.py's /extract endpoint.
+
+    Args:
+        document_type: One of INVOICE, CERTIFICATE, REPORT, UNKNOWN
+        text: Raw OCR text from the scanned document.
+
+    Returns:
+        (payload, confidence) — the extracted fields dict and a 0-100 score.
+    """
+    doc_type = document_type.upper()
+
+    # 1. Build the prompt for this document type
+    prompt = get_prompt(doc_type, text)
+
+    # 2. Send to LLM
+    logger.info(f"Sending {doc_type} text ({len(text)} chars) to LLM")
+    raw_response = ask(prompt)
+    logger.info(f"LLM response received ({len(raw_response)} chars)")
+
+    # 3. Parse JSON from the response
+    payload = _parse_llm_response(raw_response)
+
+    if not payload:
+        # LLM returned unparseable response — fall back to raw text
+        logger.warning("LLM returned no parseable JSON, falling back to raw text")
+        return {"raw": text[:500]}, 0.0
+
+    # 4. Remove null values from payload (keep it clean for the frontend)
+    payload = {k: v for k, v in payload.items() if v is not None}
+
+    # 5. Compute confidence based on field completeness
+    confidence = _compute_confidence(payload, doc_type)
+
+    return payload, confidence
