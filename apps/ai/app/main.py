@@ -1,6 +1,9 @@
 import logging
 import os
 
+from dotenv import load_dotenv
+load_dotenv()  # load .env before any module reads env vars
+
 from fastapi import FastAPI, HTTPException
 
 from models import ExtractRequest, ExtractResponse, HealthResponse
