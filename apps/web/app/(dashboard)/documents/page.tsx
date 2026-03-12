@@ -38,6 +38,9 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage]                 = useState(1);
 
+  // Tracks which row's dropdown is open — stores the document id, or null if none
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   // fetchDocuments is called every time page or filters change
@@ -86,6 +89,19 @@ export default function DocumentsPage() {
   function handleStatusChange(value: string) {
     setStatusFilter(value);
     setPage(1);
+  }
+
+  async function handleDelete(docId: string) {
+    if (!confirm('Delete this document? This action cannot be undone.')) return;
+    try {
+      await api.delete(`/documents/${docId}`);
+      // Re-fetch current page — document is gone from the list
+      fetchDocuments(page, search, typeFilter, statusFilter);
+    } catch {
+      alert('Failed to delete document.');
+    } finally {
+      setOpenMenu(null);
+    }
   }
 
   function formatDate(dateStr: string) {
@@ -193,8 +209,40 @@ export default function DocumentsPage() {
                       {doc.status.charAt(0) + doc.status.slice(1).toLowerCase().replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <button className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded">⋮</button>
+                  <td className="px-4 py-3 relative" onClick={(e) => e.stopPropagation()}>
+                    {/* Toggle button */}
+                    <button
+                      onClick={() => setOpenMenu(openMenu === doc.id ? null : doc.id)}
+                      className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded"
+                    >
+                      ⋮
+                    </button>
+
+                    {/* Dropdown — only rendered for the row whose id matches openMenu */}
+                    {openMenu === doc.id && (
+                      <div className="absolute right-4 top-10 z-10 bg-white border border-gray-100 rounded-lg shadow-md w-36 py-1">
+                        <button
+                          onClick={() => { setOpenMenu(null); router.push(`/documents/${doc.id}`); }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          View
+                        </button>
+                        {doc.status === 'REVIEW_REQUIRED' && (
+                          <button
+                            onClick={() => { setOpenMenu(null); router.push(`/documents/${doc.id}`); }}
+                            className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                          >
+                            Validate
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(doc.id)}
+                          className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))

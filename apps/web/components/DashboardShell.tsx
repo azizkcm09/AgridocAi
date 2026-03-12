@@ -134,8 +134,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
         {/* Top header */}
         <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
-          {/* Search bar */}
-          <div className="relative w-80">
+          {/* Search bar — hidden on /documents since that page has its own search */}
+          <div className={`relative w-80 ${pathname.startsWith('/documents') ? 'invisible' : ''}`}>
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
               fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

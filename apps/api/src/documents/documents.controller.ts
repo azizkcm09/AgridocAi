@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -64,7 +65,14 @@ export class DocumentsController {
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.documentsService.findOne(id, req.user.userId);
   }
-  // --- 4. UPDATE: HITL Data Correction ---
+  // --- 5. DELETE: Soft delete — marks deletedAt, preserves audit logs ---
+  @Delete(':id')
+  @ApiOperation({ summary: 'Soft delete a document (audit logs are preserved)' })
+  deleteDocument(@Param('id') id: string, @Req() req: any) {
+    return this.documentsService.deleteDocument(id, req.user.userId);
+  }
+
+  // --- 6. UPDATE: HITL Data Correction ---
   @Patch(':id/data')
   @ApiOperation({ summary: 'Update Extracted Data (Human-in-the-Loop)' })
   updateData(

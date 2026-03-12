@@ -11,13 +11,12 @@ import { InjectQueue } from '@nestjs/bullmq/dist/decorators/inject-queue.decorat
 export class DocumentsService {
   constructor(
     private prisma: PrismaService,
-    private audit: AuditService, // Injecting the Audit Service we built earlier
+    private audit: AuditService,
     @InjectQueue('document-processing') private documentQueue: Queue,
   ) {}
 
   // --- CREATE: Save metadata after MinIO upload ---
   async createDocument(userId: string, dto: CreateDocumentDto) {
-    // 1. Save the record in PostgreSQL
     const document = await this.prisma.document.create({
       data: {
         userId,
@@ -30,7 +29,6 @@ export class DocumentsService {
       },
     });
 
-    // 2. Trigger the internal Audit Log!
     await this.audit.logAction({
       userId,
       documentId: document.id,
@@ -55,19 +53,18 @@ export class DocumentsService {
     status?: string,
     search?: string,
   ) {
-    // Build the WHERE clause dynamically based on which filters were provided
-    const where: any = { userId };
+    // deletedAt: null excludes soft-deleted documents from all listings
+    const where: any = { userId, deletedAt: null };
     if (type)   where.type   = type;
     if (status) where.status = status;
     if (search) where.originalName = { contains: search, mode: 'insensitive' };
 
-    // Run both queries at the same time: one for the page data, one for the total count
     const [data, total] = await Promise.all([
       this.prisma.document.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,  // how many rows to skip before this page
-        take: limit,                // how many rows to return
+        skip: (page - 1) * limit,
+        take: limit,
       }),
       this.prisma.document.count({ where }),
     ]);
@@ -77,24 +74,20 @@ export class DocumentsService {
 
   // --- READ: Aggregate stats for the dashboard ---
   async getStats(userId: string) {
-    // Run all 3 DB queries simultaneously
+    // deletedAt: null — soft-deleted documents don't count in stats
     const [total, pendingReview, extractionData] = await Promise.all([
-      // 1. Total documents owned by this user
       this.prisma.document.count({
-        where: { userId },
+        where: { userId, deletedAt: null },
       }),
-      // 2. Documents waiting for human review
       this.prisma.document.count({
-        where: { userId, status: 'REVIEW_REQUIRED' },
+        where: { userId, status: 'REVIEW_REQUIRED', deletedAt: null },
       }),
-      // 3. All confidence scores (only rows that have extractedData)
       this.prisma.extractedData.findMany({
-        where: { document: { userId } },
-        select: { confidence: true }, // only fetch the confidence column
+        where: { document: { userId, deletedAt: null } },
+        select: { confidence: true },
       }),
     ]);
 
-    // Compute average confidence from the scores we got
     const avgConfidence =
       extractionData.length > 0
         ? Math.round(
@@ -106,35 +99,60 @@ export class DocumentsService {
     return { total, pendingReview, avgConfidence };
   }
 
-
   // --- READ: Get specific document details ---
   async findOne(id: string, userId: string) {
     const document = await this.prisma.document.findFirst({
-      where: { id, userId },
+      // deletedAt: null — prevent accessing a soft-deleted document by direct URL
+      where: { id, userId, deletedAt: null },
       include: {
         extractedData: true,
-        auditLogs: { orderBy: { timestamp: 'desc' } }, // Include history for the frontend
+        auditLogs: { orderBy: { timestamp: 'desc' } },
       },
     });
 
     if (!document) throw new NotFoundException('Document not found');
     return document;
-
   }
+
+  // --- DELETE: Soft delete — marks the document as deleted without removing the row ---
+  async deleteDocument(id: string, userId: string) {
+    // Verify ownership first
+    const document = await this.prisma.document.findFirst({
+      where: { id, userId, deletedAt: null },
+    });
+
+    if (!document) throw new NotFoundException('Document not found');
+
+    // Set deletedAt instead of using prisma.document.delete()
+    // This preserves the row and all related audit logs in the database
+    await this.prisma.document.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
+    // Log the deletion — this audit log survives because documentId is still set
+    await this.audit.logAction({
+      userId,
+      documentId: id,
+      action: 'DELETE_DOC',
+      description: `User deleted document: ${document.originalName}`,
+    });
+
+    return { message: 'Document deleted successfully' };
+  }
+
   // --- UPDATE: Human-in-the-Loop Data Correction ---
   async updateExtractedData(id: string, userId: string, newData: any) {
-    // 1. Verify the document belongs to the user
     const document = await this.prisma.document.findFirst({
-      where: { id, userId },
+      where: { id, userId, deletedAt: null },
       include: { extractedData: true },
     });
 
     if (!document) throw new NotFoundException('Document not found');
 
-    // 2. Validate the new data against our Zod schema
     const schema = getPayloadSchema(document.type);
     const validation = schema.safeParse(newData);
-    
+
     if (!validation.success) {
       throw new BadRequestException({
         message: 'Invalid data format',
@@ -144,26 +162,18 @@ export class DocumentsService {
 
     const oldPayload = document.extractedData?.payload || {};
 
-    // 3. Database Transaction: Update Data, Change Status, Log Audit
     return this.prisma.$transaction(async (tx) => {
-      // Upsert: Update if exists, Create if the AI worker hasn't made it yet
       const updatedData = await tx.extractedData.upsert({
         where: { documentId: id },
-        update: { payload: newData, confidence: 100 }, // Human validated = 100%
-        create: {
-          documentId: id,
-          payload: newData,
-          confidence: 100,
-        },
+        update: { payload: newData, confidence: 100 },
+        create: { documentId: id, payload: newData, confidence: 100 },
       });
 
-      // Move document status forward
       await tx.document.update({
         where: { id },
         data: { status: 'VALIDATED' },
       });
 
-      // Log the exact fields that changed
       await this.audit.logAction({
         userId,
         documentId: id,

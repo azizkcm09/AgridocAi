@@ -68,6 +68,10 @@ model Document {
 
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+
+  // Soft delete: set this instead of destroying the row
+  // Queries filter WHERE deletedAt IS NULL to exclude deleted documents
+  deletedAt    DateTime?
 }
 
 model ExtractedData {
@@ -98,9 +102,11 @@ model AuditLog {
   // Relations
   userId      String?     // Optional (System might do actions too)
   user        User?       @relation(fields: [userId], references: [id])
-  
-  documentId  String
-  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  // Nullable: if the document is hard-deleted, the log survives as an orphan (compliance)
+  // SetNull: automatically sets documentId to NULL instead of deleting the log row
+  documentId  String?
+  document    Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   timestamp   DateTime    @default(now())
 }
