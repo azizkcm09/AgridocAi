@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -31,20 +31,29 @@ export default function DocumentsPage() {
   const [total, setTotal]         = useState(0);
   const [loading, setLoading]     = useState(true);
 
-  // Filter + pagination state
-  // Read initial search value from URL query param (set by the header search bar)
   const [search, setSearch]             = useState(searchParams.get('search') ?? '');
   const [typeFilter, setTypeFilter]     = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage]                 = useState(1);
 
-  // Tracks which row's dropdown is open — stores the document id, or null if none
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  // fetchDocuments is called every time page or filters change
-  // useCallback prevents it from being recreated on every render
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    }
+    if (openMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openMenu]);
+
   const fetchDocuments = useCallback(async (
     currentPage: number,
     currentSearch: string,
@@ -53,7 +62,6 @@ export default function DocumentsPage() {
   ) => {
     setLoading(true);
     try {
-      // Build query string — only include filters that are actually set
       const params = new URLSearchParams();
       params.set('page',  String(currentPage));
       params.set('limit', String(PAGE_SIZE));
@@ -61,10 +69,9 @@ export default function DocumentsPage() {
       if (currentType   !== 'ALL')    params.set('type',   currentType);
       if (currentStatus !== 'ALL')    params.set('status', currentStatus);
 
-      // GET /documents?page=1&limit=8&type=INVOICE&...
       const res = await api.get(`/documents?${params.toString()}`);
-      setDocuments(res.data.data);   // the page of results
-      setTotal(res.data.total);      // total matching rows (for page count)
+      setDocuments(res.data.data);
+      setTotal(res.data.total);
     } catch {
       router.push('/login');
     } finally {
@@ -72,12 +79,10 @@ export default function DocumentsPage() {
     }
   }, [router]);
 
-  // Re-fetch whenever page, search, type, or status changes
   useEffect(() => {
     fetchDocuments(page, search, typeFilter, statusFilter);
   }, [page, search, typeFilter, statusFilter, fetchDocuments]);
 
-  // When filters change, always go back to page 1
   function handleSearchChange(value: string) {
     setSearch(value);
     setPage(1);
@@ -95,7 +100,6 @@ export default function DocumentsPage() {
     if (!confirm('Delete this document? This action cannot be undone.')) return;
     try {
       await api.delete(`/documents/${docId}`);
-      // Re-fetch current page — document is gone from the list
       fetchDocuments(page, search, typeFilter, statusFilter);
     } catch {
       alert('Failed to delete document.');
@@ -110,13 +114,18 @@ export default function DocumentsPage() {
     });
   }
 
+  // Determine if the dropdown should open upward (for rows near the bottom)
+  function dropdownPosition(index: number) {
+    const isNearBottom = index >= documents.length - 2;
+    return isNearBottom ? 'bottom-10' : 'top-10';
+  }
+
   return (
     <div className="space-y-4">
 
-      {/* Page title */}
       <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
 
-      {/* ── FILTERS ── */}
+      {/* -- FILTERS -- */}
       <div className="flex items-center gap-3">
 
         <div className="relative flex-1 max-w-md">
@@ -127,7 +136,7 @@ export default function DocumentsPage() {
           </svg>
           <input
             type="text"
-            placeholder="Filename..."
+            placeholder="Search by filename..."
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -139,7 +148,7 @@ export default function DocumentsPage() {
           onChange={(e) => handleTypeChange(e.target.value)}
           className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="ALL">Document Type: All</option>
+          <option value="ALL">Type: All</option>
           <option value="INVOICE">Invoice</option>
           <option value="CERTIFICATE">Certificate</option>
           <option value="REPORT">Report</option>
@@ -161,40 +170,36 @@ export default function DocumentsPage() {
         </select>
       </div>
 
-      {/* ── TABLE ── */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      {/* -- TABLE -- */}
+      <div className="bg-white rounded-xl border border-gray-100 overflow-visible">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-left">
-              <th className="px-4 py-3 font-medium text-gray-500 w-8">
-                <input type="checkbox" className="rounded" />
-              </th>
               <th className="px-4 py-3 font-medium text-gray-500">Document Name</th>
               <th className="px-4 py-3 font-medium text-gray-500">Type</th>
               <th className="px-4 py-3 font-medium text-gray-500">Upload Date</th>
               <th className="px-4 py-3 font-medium text-gray-500">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-500">Actions</th>
+              <th className="px-4 py-3 font-medium text-gray-500 w-16">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">Loading...</td>
+                <td colSpan={5} className="text-center py-12 text-gray-400">Loading...</td>
               </tr>
             ) : documents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">No documents found.</td>
+                <td colSpan={5} className="text-center py-12 text-gray-400">
+                  No documents found.
+                </td>
               </tr>
             ) : (
-              documents.map((doc) => (
+              documents.map((doc, index) => (
                 <tr
                   key={doc.id}
                   onClick={() => router.push(`/documents/${doc.id}`)}
                   className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" className="rounded" />
-                  </td>
                   <td className="px-4 py-3 text-blue-600 font-medium max-w-xs truncate">
                     {doc.originalName}
                   </td>
@@ -210,17 +215,18 @@ export default function DocumentsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 relative" onClick={(e) => e.stopPropagation()}>
-                    {/* Toggle button */}
                     <button
                       onClick={() => setOpenMenu(openMenu === doc.id ? null : doc.id)}
-                      className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded"
+                      className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
                     >
                       ⋮
                     </button>
 
-                    {/* Dropdown — only rendered for the row whose id matches openMenu */}
                     {openMenu === doc.id && (
-                      <div className="absolute right-4 top-10 z-10 bg-white border border-gray-100 rounded-lg shadow-md w-36 py-1">
+                      <div
+                        ref={menuRef}
+                        className={`absolute right-4 ${dropdownPosition(index)} z-20 bg-white border border-gray-200 rounded-lg shadow-lg w-36 py-1`}
+                      >
                         <button
                           onClick={() => { setOpenMenu(null); router.push(`/documents/${doc.id}`); }}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -251,7 +257,7 @@ export default function DocumentsPage() {
         </table>
       </div>
 
-      {/* ── PAGINATION ── */}
+      {/* -- PAGINATION -- */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-gray-500">
           <span>Page {page} of {totalPages} · {total} total</span>
