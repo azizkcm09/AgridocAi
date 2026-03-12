@@ -65,6 +65,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     router.push('/login');
   }
 
+  // When the user presses Enter in the header search, navigate to the documents
+  // page with the search term as a query param — the documents page reads it automatically
+  function handleSearch(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      const query = e.currentTarget.value.trim();
+      if (query) {
+        router.push(`/documents?search=${encodeURIComponent(query)}`);
+      } else {
+        router.push('/documents');
+      }
+    }
+  }
+
   // Return null until the browser has mounted — matches the server render exactly
   if (!mounted) return null;
 
@@ -131,6 +144,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <input
               type="text"
               placeholder="Search..."
+              onKeyDown={handleSearch}
               className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

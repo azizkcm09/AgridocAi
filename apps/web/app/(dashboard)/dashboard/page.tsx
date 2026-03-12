@@ -1,29 +1,24 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import axios from 'axios';
 
-// --- Types matching the NestJS API responses ---
-type Document = {
-  id: string;
-  originalName: string;
-  status: string;
-  type: string;
-  createdAt: string;
-  extractedData?: { confidence: number } | null;
+// Shape of GET /documents/stats response
+type Stats = {
+  total: number;
+  pendingReview: number;
+  avgConfidence: number;
 };
 
 type AuditLog = {
   id: string;
   action: string;
-  description: string;
   timestamp: string;
   document: { originalName: string };
 };
 
-// Maps document type dropdown labels to the API enum values
 const DOC_TYPES = [
   { label: 'Invoice',     value: 'INVOICE' },
   { label: 'Certificate', value: 'CERTIFICATE' },
@@ -34,10 +29,9 @@ const DOC_TYPES = [
 export default function DashboardPage() {
   const router = useRouter();
 
-  // --- State ---
-  const [documents, setDocuments]   = useState<Document[]>([]);
-  const [auditLogs, setAuditLogs]   = useState<AuditLog[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const [stats, setStats]         = useState<Stats | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading]     = useState(true);
 
   // Upload state
   const [isDragging, setIsDragging] = useState(false);
@@ -46,16 +40,22 @@ export default function DashboardPage() {
   const [docType, setDocType]       = useState('INVOICE');
   const fileInputRef                = useRef<HTMLInputElement>(null);
 
-  // --- Fetch data on page load ---
+  // Extracted into its own function so we can call it after upload too
+  // useCallback gives it a stable reference so the useEffect dependency is safe
+  const loadStats = useCallback(async () => {
+    const res = await api.get('/documents/stats');
+    setStats(res.data); // { total, pendingReview, avgConfidence }
+  }, []);
+
+  // --- Fetch stats + audit logs on page load ---
   useEffect(() => {
     async function load() {
       try {
-        // Both requests run at the same time for speed
-        const [docsRes, auditRes] = await Promise.all([
-          api.get('/documents'),
+        // Both run at the same time
+        const [, auditRes] = await Promise.all([
+          loadStats(),
           api.get('/audit/recent'),
         ]);
-        setDocuments(docsRes.data.data); // { data: [...], total: N }
         setAuditLogs(auditRes.data);
       } catch {
         router.push('/login');
@@ -64,35 +64,27 @@ export default function DashboardPage() {
       }
     }
     load();
-  }, [router]);
-
-  // --- Computed stats from the documents list ---
-  const totalProcessed = documents.length;
-  const pendingReview  = documents.filter((d) => d.status === 'REVIEW_REQUIRED').length;
-  const docsWithConf   = documents.filter((d) => d.extractedData?.confidence != null);
-  const avgConfidence  = docsWithConf.length > 0
-    ? Math.round(docsWithConf.reduce((sum, d) => sum + (d.extractedData?.confidence ?? 0), 0) / docsWithConf.length)
-    : 0;
+  }, [router, loadStats]);
 
   // --- Upload: 3-step pipeline ---
   async function handleUpload(file: File) {
     setUploading(true);
     setUploadMsg('Requesting upload URL...');
     try {
-      // Step 1: Get a presigned URL from NestJS
+      // Step 1: presigned URL from NestJS
       const urlRes = await api.post('/storage/presigned-url', {
         fileName: file.name,
         contentType: file.type,
       });
       const { uploadUrl, key } = urlRes.data;
 
-      // Step 2: Upload directly to MinIO — use plain axios (no auth header, presigned URL handles security)
+      // Step 2: upload directly to MinIO (plain axios — no JWT header, presigned URL handles auth)
       setUploadMsg('Uploading file...');
       await axios.put(uploadUrl, file, {
         headers: { 'Content-Type': file.type },
       });
 
-      // Step 3: Register in NestJS to trigger the BullMQ job → AI pipeline
+      // Step 3: register document in NestJS → triggers BullMQ job → AI pipeline
       setUploadMsg('Queuing for AI extraction...');
       await api.post('/documents', {
         originalName: file.name,
@@ -103,9 +95,9 @@ export default function DashboardPage() {
       });
 
       setUploadMsg('✓ Document uploaded and queued for AI extraction.');
-      // Refresh stats
-      const docsRes = await api.get('/documents');
-      setDocuments(docsRes.data.data);
+
+      // Refresh stats cards so Total Processed updates immediately
+      await loadStats();
     } catch {
       setUploadMsg('Upload failed. Please try again.');
     } finally {
@@ -125,7 +117,6 @@ export default function DashboardPage() {
     if (file) handleUpload(file);
   }
 
-  // --- Format timestamp to "10m ago" style ---
   function formatTimeAgo(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -161,18 +152,18 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
       </div>
 
-      {/* ── STATS CARDS ── */}
+      {/* ── STATS CARDS — real numbers from GET /documents/stats ── */}
       <div className="grid grid-cols-3 gap-4">
 
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <p className="text-sm text-gray-500">Total Processed</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{totalProcessed}</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.total ?? 0}</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <p className="text-sm text-gray-500">Pending Review</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{pendingReview}</p>
-          {pendingReview > 0 && (
+          <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.pendingReview ?? 0}</p>
+          {(stats?.pendingReview ?? 0) > 0 && (
             <span className="inline-block mt-2 px-2 py-0.5 text-xs rounded bg-yellow-50 text-yellow-700 border border-yellow-200">
               REVIEW_REQUIRED
             </span>
@@ -181,7 +172,7 @@ export default function DashboardPage() {
 
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <p className="text-sm text-gray-500">Avg. AI Confidence</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{avgConfidence}%</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.avgConfidence ?? 0}%</p>
         </div>
 
       </div>
@@ -205,7 +196,6 @@ export default function DashboardPage() {
             </select>
           </div>
 
-          {/* Drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
@@ -232,7 +222,6 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Status message */}
           {uploadMsg && (
             <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('✓') ? 'text-green-600' : 'text-gray-500'}`}>
               {uploadMsg}

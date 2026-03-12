@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 
 type Document = {
@@ -24,14 +24,16 @@ const STATUS_COLORS: Record<string, string> = {
 const PAGE_SIZE = 8;
 
 export default function DocumentsPage() {
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [total, setTotal]         = useState(0);
   const [loading, setLoading]     = useState(true);
 
   // Filter + pagination state
-  const [search, setSearch]             = useState('');
+  // Read initial search value from URL query param (set by the header search bar)
+  const [search, setSearch]             = useState(searchParams.get('search') ?? '');
   const [typeFilter, setTypeFilter]     = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage]                 = useState(1);

@@ -51,7 +51,14 @@ export class DocumentsController {
     );
   }
 
-  // --- 3. READ: Get one document ---
+  // --- 3. READ: Dashboard stats (MUST be before :id route or NestJS matches "stats" as an id)
+  @Get('stats')
+  @ApiOperation({ summary: 'Get dashboard stats: total, pendingReview, avgConfidence' })
+  getStats(@Req() req: any) {
+    return this.documentsService.getStats(req.user.userId);
+  }
+
+  // --- 4. READ: Get one document ---
   @Get(':id')
   @ApiOperation({ summary: 'Get specific document details' })
   findOne(@Param('id') id: string, @Req() req: any) {

@@ -75,6 +75,38 @@ export class DocumentsService {
     return { data, total };
   }
 
+  // --- READ: Aggregate stats for the dashboard ---
+  async getStats(userId: string) {
+    // Run all 3 DB queries simultaneously
+    const [total, pendingReview, extractionData] = await Promise.all([
+      // 1. Total documents owned by this user
+      this.prisma.document.count({
+        where: { userId },
+      }),
+      // 2. Documents waiting for human review
+      this.prisma.document.count({
+        where: { userId, status: 'REVIEW_REQUIRED' },
+      }),
+      // 3. All confidence scores (only rows that have extractedData)
+      this.prisma.extractedData.findMany({
+        where: { document: { userId } },
+        select: { confidence: true }, // only fetch the confidence column
+      }),
+    ]);
+
+    // Compute average confidence from the scores we got
+    const avgConfidence =
+      extractionData.length > 0
+        ? Math.round(
+            extractionData.reduce((sum, d) => sum + d.confidence, 0) /
+              extractionData.length,
+          )
+        : 0;
+
+    return { total, pendingReview, avgConfidence };
+  }
+
+
   // --- READ: Get specific document details ---
   async findOne(id: string, userId: string) {
     const document = await this.prisma.document.findFirst({
