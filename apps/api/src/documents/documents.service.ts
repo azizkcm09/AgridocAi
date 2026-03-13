@@ -141,6 +141,31 @@ export class DocumentsService {
     return { message: 'Document deleted successfully' };
   }
 
+  // --- REJECT: Mark a document as rejected by the reviewer ---
+  async rejectDocument(id: string, userId: string, reason?: string) {
+    const document = await this.prisma.document.findFirst({
+      where: { id, userId, deletedAt: null },
+    });
+
+    if (!document) throw new NotFoundException('Document not found');
+
+    await this.prisma.document.update({
+      where: { id },
+      data: { status: 'REJECTED' },
+    });
+
+    await this.audit.logAction({
+      userId,
+      documentId: id,
+      action: 'VALIDATE_DOC',
+      description: reason
+        ? `User rejected document: ${reason}`
+        : 'User rejected document',
+    });
+
+    return { message: 'Document rejected' };
+  }
+
   // --- UPDATE: Human-in-the-Loop Data Correction ---
   async updateExtractedData(id: string, userId: string, newData: any) {
     const document = await this.prisma.document.findFirst({

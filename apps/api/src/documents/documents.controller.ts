@@ -72,13 +72,24 @@ export class DocumentsController {
     return this.documentsService.deleteDocument(id, req.user.userId);
   }
 
-  // --- 6. UPDATE: HITL Data Correction ---
+  // --- 6. REJECT: Mark document as rejected by reviewer ---
+  @Patch(':id/reject')
+  @ApiOperation({ summary: 'Reject a document (HITL review)' })
+  rejectDocument(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+    @Req() req: any,
+  ) {
+    return this.documentsService.rejectDocument(id, req.user.userId, body.reason);
+  }
+
+  // --- 7. UPDATE: HITL Data Correction ---
   @Patch(':id/data')
   @ApiOperation({ summary: 'Update Extracted Data (Human-in-the-Loop)' })
   updateData(
-    @Param('id') id: string, 
-    @Body() updateDataDto: any, 
-    @Req() req: any
+    @Param('id') id: string,
+    @Body() updateDataDto: any,
+    @Req() req: any,
   ) {
     return this.documentsService.updateExtractedData(id, req.user.userId, updateDataDto);
   }

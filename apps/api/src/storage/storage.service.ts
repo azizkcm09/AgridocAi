@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
@@ -40,8 +40,20 @@ async getPresignedUploadUrl(fileName: string, contentType: string) {
     // 4. Return both the URL and the final file path (Key)
     return {
       uploadUrl,
-      key: uniqueFileName, 
+      key: uniqueFileName,
     };
+  }
+
+  // Generate a presigned GET URL so the browser can view/download the file directly from MinIO.
+  // Expires in 15 minutes — enough for a review session.
+  async getPresignedDownloadUrl(key: string) {
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+    });
+
+    const downloadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 900 });
+    return { downloadUrl };
   }
 }
 
