@@ -4,7 +4,8 @@ import type { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL ?? 'http://localhost:8000';
+const AI_SERVICE_URL  = process.env.AI_SERVICE_URL  ?? 'http://localhost:8000';
+const API_BASE_URL    = process.env.API_BASE_URL     ?? 'http://localhost:3000';
 
 @Processor('document-processing')
 export class DocumentsProcessor extends WorkerHost {
@@ -34,21 +35,24 @@ export class DocumentsProcessor extends WorkerHost {
       description: 'Background worker started processing document',
     });
 
-    // Step 2: Read document type from DB (set during upload, defaults to UNKNOWN)
+    // Step 2: Read document type from DB
     const document = await this.prisma.document.findUnique({
       where: { id: documentId },
     });
     const documentType = document?.type ?? 'UNKNOWN';
 
-    // Step 3: Call the FastAPI AI service
-    let aiResult: { payload: Record<string, any>; confidence: number; raw_text: string };
+    // Step 3: Build the callback URL that Python will call when done
+    const callbackUrl = `${API_BASE_URL}/documents/${documentId}/extraction-callback`;
 
+    // Step 4: Tell the AI service to start processing (fire-and-forget)
+    //   We send the callbackUrl so Python knows where to POST results.
+    //   We DON'T await the extraction itself — Python will call us back.
     try {
       const response = await fetch(`${AI_SERVICE_URL}/extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storagePath, documentType }),
-        signal: AbortSignal.timeout(120_000),
+        body: JSON.stringify({ storagePath, documentType, callbackUrl }),
+        signal: AbortSignal.timeout(10_000), // 10s timeout — just to send the request, not wait for extraction
       });
 
       if (!response.ok) {
@@ -56,7 +60,7 @@ export class DocumentsProcessor extends WorkerHost {
         throw new Error(`AI service error ${response.status}: ${errorBody}`);
       }
 
-      aiResult = await response.json();
+      this.logger.log(`AI service accepted job for ${documentId}. Waiting for callback.`);
     } catch (fetchError) {
       this.logger.error(`AI service call failed for ${documentId}: ${fetchError.message}`);
       await this.prisma.document.update({
@@ -64,39 +68,6 @@ export class DocumentsProcessor extends WorkerHost {
         data: { status: 'ERROR' },
       });
       throw fetchError;
-    }
-
-    // Step 4: Save extracted data and update status (both in one transaction)
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.extractedData.upsert({
-          where: { documentId },
-          update: { payload: aiResult.payload, confidence: aiResult.confidence },
-          create: { documentId, payload: aiResult.payload, confidence: aiResult.confidence },
-        });
-
-        await tx.document.update({
-          where: { id: documentId },
-          data: { status: 'REVIEW_REQUIRED' },
-        });
-      });
-
-      await this.audit.logAction({
-        documentId,
-        userId,
-        action: 'AUTO_EXTRACT',
-        description: `Extraction complete. Confidence: ${aiResult.confidence}%`,
-        newValue: aiResult.payload,
-      });
-
-      this.logger.log(`✅ Document ${documentId} processed. Confidence: ${aiResult.confidence}%`);
-    } catch (dbError) {
-      this.logger.error(`DB write failed for ${documentId}: ${dbError.message}`);
-      await this.prisma.document.update({
-        where: { id: documentId },
-        data: { status: 'ERROR' },
-      });
-      throw dbError;
     }
   }
 }

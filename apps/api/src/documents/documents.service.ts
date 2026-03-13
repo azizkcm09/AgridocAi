@@ -211,4 +211,66 @@ export class DocumentsService {
       return updatedData;
     });
   }
+    // --- CALLBACK: Receive extraction results from the AI service ---
+  async handleExtractionCallback(
+    documentId: string,
+    dto: { payload: Record<string, any>; confidence: number; rawText?: string },
+  ) {
+    // 1. Check the document exists and is currently being processed
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+    });
+
+    if (!document) throw new NotFoundException('Document not found');
+
+    // 2. Save extracted data + update status in one transaction
+    //    Why a transaction? If status updates but data save fails,
+    //    you'd have a doc marked "ready for review" with no data to review.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.extractedData.upsert({
+        where: { documentId },
+        update: { payload: dto.payload, confidence: dto.confidence },
+        create: { documentId, payload: dto.payload, confidence: dto.confidence },
+      });
+
+      await tx.document.update({
+        where: { id: documentId },
+        data: { status: 'REVIEW_REQUIRED' },
+      });
+    });
+
+    // 3. Audit trail — record that AI extraction completed
+    await this.audit.logAction({
+      documentId,
+      userId: document.userId,
+      action: 'AUTO_EXTRACT',
+      description: `AI extraction complete. Confidence: ${dto.confidence}%`,
+      newValue: dto.payload,
+    });
+
+    return { message: 'Extraction saved', documentId };
+  }
+  // --- ERROR CALLBACK: AI service reports a processing failure ---
+  async handleExtractionError(documentId: string, error: string) {
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+    });
+
+    if (!document) throw new NotFoundException('Document not found');
+
+    await this.prisma.document.update({
+      where: { id: documentId },
+      data: { status: 'ERROR' },
+    });
+
+    await this.audit.logAction({
+      documentId,
+      userId: document.userId,
+      action: 'AUTO_EXTRACT',
+      description: `AI extraction failed: ${error}`,
+    });
+
+    return { message: 'Error recorded', documentId };
+  }
+
 }

@@ -10,14 +10,16 @@ import {
   UseGuards,
   Req
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Public } from '../auth/public.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
+import { ExtractionCallbackDto } from './dto/extraction-callback.dto';
 
 @ApiTags('Documents')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt')) //  The JWT Shield is active here
+@UseGuards(JwtAuthGuard)
 @Controller('documents')
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
@@ -59,20 +61,43 @@ export class DocumentsController {
     return this.documentsService.getStats(req.user.userId);
   }
 
-  // --- 4. READ: Get one document ---
+  // --- 4. CALLBACK: Receive AI extraction results (service-to-service) ---
+  @Public() // This endpoint is called by the AI service, so it must be public (no JWT required)
+  @Post(':id/extraction-callback')
+
+  @ApiOperation({ summary: 'Callback from AI service with extraction results' })
+  handleExtractionCallback(
+    @Param('id') id: string,
+    @Body() dto: ExtractionCallbackDto,
+  ) {
+    return this.documentsService.handleExtractionCallback(id, dto);
+  }
+    // --- 5. ERROR CALLBACK: AI service reports processing failure ---
+  @Public()
+  @Post(':id/extraction-error')
+  @ApiOperation({ summary: 'Error callback from AI service' })
+  handleExtractionError(
+    @Param('id') id: string,
+    @Body() body: { error: string },
+  ) {
+    return this.documentsService.handleExtractionError(id, body.error);
+  }
+
+
+  // --- 6. READ: Get one document ---
   @Get(':id')
   @ApiOperation({ summary: 'Get specific document details' })
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.documentsService.findOne(id, req.user.userId);
   }
-  // --- 5. DELETE: Soft delete — marks deletedAt, preserves audit logs ---
+  // --- 7. DELETE: Soft delete — marks deletedAt, preserves audit logs ---
   @Delete(':id')
   @ApiOperation({ summary: 'Soft delete a document (audit logs are preserved)' })
   deleteDocument(@Param('id') id: string, @Req() req: any) {
     return this.documentsService.deleteDocument(id, req.user.userId);
   }
 
-  // --- 6. REJECT: Mark document as rejected by reviewer ---
+  // --- 8. REJECT: Mark document as rejected by reviewer ---
   @Patch(':id/reject')
   @ApiOperation({ summary: 'Reject a document (HITL review)' })
   rejectDocument(
@@ -83,7 +108,7 @@ export class DocumentsController {
     return this.documentsService.rejectDocument(id, req.user.userId, body.reason);
   }
 
-  // --- 7. UPDATE: HITL Data Correction ---
+  // --- 9. UPDATE: HITL Data Correction ---
   @Patch(':id/data')
   @ApiOperation({ summary: 'Update Extracted Data (Human-in-the-Loop)' })
   updateData(
