@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import api from '@/lib/api';
+import Modal from '@/components/Modal';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -102,6 +103,8 @@ export default function DocumentDetailPage() {
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [saveMsg, setSaveMsg]       = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -151,16 +154,15 @@ export default function DocumentDetailPage() {
     }
   }
 
-  // Reject document
-  async function onReject() {
-    const reason = prompt('Reason for rejection (optional):');
-    if (reason === null) return; // user cancelled the prompt
-
+  // Reject document via modal
+  async function confirmReject() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      await api.patch(`/documents/${id}/reject`, { reason: reason || undefined });
+      await api.patch(`/documents/${id}/reject`, { reason: rejectReason || undefined });
       setSaveMsg('Document rejected.');
+      setRejectOpen(false);
+      setRejectReason('');
       await loadDocument();
     } catch {
       setSaveMsg('Failed to reject document.');
@@ -405,7 +407,7 @@ export default function DocumentDetailPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={onReject}
+                  onClick={() => setRejectOpen(true)}
                   disabled={saving}
                   className="w-full py-2.5 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
                 >
@@ -464,6 +466,34 @@ export default function DocumentDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Reject confirmation modal */}
+      <Modal open={rejectOpen} onClose={() => { setRejectOpen(false); setRejectReason(''); }} title="Reject Document">
+        <p className="text-sm text-gray-600 mb-3">
+          Are you sure you want to reject <span className="font-medium text-gray-800">{doc.originalName}</span>?
+        </p>
+        <textarea
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          placeholder="Reason for rejection (optional)"
+          className="field-input resize-none h-20 mb-4"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setRejectOpen(false); setRejectReason(''); }}
+            className="flex-1 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmReject}
+            disabled={saving}
+            className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+          >
+            {saving ? 'Rejecting...' : 'Reject'}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

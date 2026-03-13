@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
+import Modal from '@/components/Modal';
 
 type Document = {
   id: string;
@@ -37,6 +38,8 @@ export default function DocumentsPage() {
   const [page, setPage]                 = useState(1);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -96,15 +99,17 @@ export default function DocumentsPage() {
     setPage(1);
   }
 
-  async function handleDelete(docId: string) {
-    if (!confirm('Delete this document? This action cannot be undone.')) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/documents/${docId}`);
+      await api.delete(`/documents/${deleteTarget.id}`);
+      setDeleteTarget(null);
       fetchDocuments(page, search, typeFilter, statusFilter);
     } catch {
-      alert('Failed to delete document.');
+      // keep modal open so user sees something went wrong
     } finally {
-      setOpenMenu(null);
+      setDeleting(false);
     }
   }
 
@@ -242,7 +247,7 @@ export default function DocumentsPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => handleDelete(doc.id)}
+                          onClick={() => { setOpenMenu(null); setDeleteTarget(doc); }}
                           className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
                         >
                           Delete
@@ -258,6 +263,29 @@ export default function DocumentsPage() {
       </div>
 
       {/* -- PAGINATION -- */}
+      {/* Delete confirmation modal */}
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Document">
+        <p className="text-sm text-gray-600 mb-1">
+          Are you sure you want to delete <span className="font-medium text-gray-800">{deleteTarget?.originalName}</span>?
+        </p>
+        <p className="text-xs text-gray-400 mb-5">This document will be removed from your list. Audit logs are preserved.</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setDeleteTarget(null)}
+            className="flex-1 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmDelete}
+            disabled={deleting}
+            className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </Modal>
+
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-gray-500">
           <span>Page {page} of {totalPages} · {total} total</span>

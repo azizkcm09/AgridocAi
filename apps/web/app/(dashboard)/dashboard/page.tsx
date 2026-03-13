@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [uploading, setUploading]   = useState(false);
   const [uploadMsg, setUploadMsg]   = useState<string | null>(null);
   const [docType, setDocType]       = useState('INVOICE');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef                = useRef<HTMLInputElement>(null);
 
   // Extracted into its own function so we can call it after upload too
@@ -97,6 +98,7 @@ export default function DashboardPage() {
       });
 
       setUploadMsg('✓ Document uploaded and queued for AI extraction.');
+      setPendingFile(null);
 
       // Refresh stats cards so Total Processed updates immediately
       await loadStats();
@@ -111,12 +113,20 @@ export default function DashboardPage() {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleUpload(file);
+    if (file) setPendingFile(file);
   }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) handleUpload(file);
+    if (file) setPendingFile(file);
+    // Reset input so the same file can be re-selected
+    if (e.target) e.target.value = '';
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   function formatTimeAgo(dateStr: string) {
@@ -202,22 +212,39 @@ export default function DashboardPage() {
           </div>
 
           <div
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragOver={(e) => { e.preventDefault(); if (!pendingFile) setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={onDrop}
-            onClick={() => !uploading && fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center py-14 cursor-pointer transition-colors ${
-              isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+            onClick={() => !uploading && !pendingFile && fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center py-14 transition-colors ${
+              pendingFile
+                ? 'border-blue-400 bg-blue-50'
+                : isDragging
+                  ? 'border-blue-400 bg-blue-50 cursor-pointer'
+                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50 cursor-pointer'
             }`}
           >
-            <svg className="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-            </svg>
-            <p className="text-sm font-medium text-gray-600">
-              {uploading ? 'Uploading...' : 'Drop invoice or certificate here to process.'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">or click to select files</p>
+            {pendingFile ? (
+              <>
+                <svg className="w-10 h-10 text-blue-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-sm font-medium text-gray-800">{pendingFile.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{formatBytes(pendingFile.size)} · {pendingFile.type || 'unknown type'}</p>
+              </>
+            ) : (
+              <>
+                <svg className="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                </svg>
+                <p className="text-sm font-medium text-gray-600">
+                  {uploading ? 'Uploading...' : 'Drop invoice or certificate here to process.'}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">or click to select files</p>
+              </>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -227,8 +254,25 @@ export default function DashboardPage() {
             />
           </div>
 
+          {pendingFile && !uploading && (
+            <div className="flex gap-3 mt-3">
+              <button
+                onClick={() => { setPendingFile(null); setUploadMsg(null); }}
+                className="flex-1 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleUpload(pendingFile)}
+                className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Proceed
+              </button>
+            </div>
+          )}
+
           {uploadMsg && (
-            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('✓') ? 'text-green-600' : 'text-gray-500'}`}>
+            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('✓') ? 'text-green-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-gray-500'}`}>
               {uploadMsg}
             </p>
           )}
@@ -271,6 +315,7 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
     </div>
   );
 }
