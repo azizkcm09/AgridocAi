@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import api from '@/lib/api';
+import { useToast } from '@/lib/toast-context';
 import Modal from '@/components/Modal';
 
 // ── Types ──────────────────────────────────────────────
@@ -97,6 +98,7 @@ const ACTION_COLORS: Record<string, string> = {
 export default function DocumentDetailPage() {
   const { id }  = useParams<{ id: string }>();
   const router  = useRouter();
+  const { addToast } = useToast();
 
   const [doc, setDoc]               = useState<DocumentDetail | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -144,11 +146,12 @@ export default function DocumentDetailPage() {
       if (cleaned.totalAmount) cleaned.totalAmount = parseFloat(cleaned.totalAmount);
 
       await api.patch(`/documents/${id}/data`, cleaned);
-      setSaveMsg('Document validated and saved.');
+      addToast('Document validated and saved.', 'success');
+      setSaveMsg(null);
       await loadDocument();
     } catch (err: any) {
       const detail = err.response?.data?.message;
-      setSaveMsg(typeof detail === 'string' ? detail : 'Validation failed. Check your inputs.');
+      addToast(typeof detail === 'string' ? detail : 'Validation failed. Check your inputs.', 'error');
     } finally {
       setSaving(false);
     }
@@ -160,12 +163,13 @@ export default function DocumentDetailPage() {
     setSaveMsg(null);
     try {
       await api.patch(`/documents/${id}/reject`, { reason: rejectReason || undefined });
-      setSaveMsg('Document rejected.');
+      addToast('Document rejected.', 'success');
+      setSaveMsg(null);
       setRejectOpen(false);
       setRejectReason('');
       await loadDocument();
     } catch {
-      setSaveMsg('Failed to reject document.');
+      addToast('Failed to reject document.', 'error');
     } finally {
       setSaving(false);
     }

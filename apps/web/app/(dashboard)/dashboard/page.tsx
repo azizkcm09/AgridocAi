@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import api from '@/lib/api';
 import fetcher from '@/lib/fetcher';
 import axios from 'axios';
+import { useToast } from '@/lib/toast-context';
 import DocumentsOverTimeChart from '@/components/charts/DocumentsOverTimeChart';
 import DocumentsByTypeChart from '@/components/charts/DocumentsByTypeChart';
 import DocumentsByStatusChart from '@/components/charts/DocumentsByStatusChart';
@@ -70,6 +71,7 @@ function formatSeconds(sec: number) {
 export default function DashboardPage() {
   const router = useRouter();
 
+  const { addToast } = useToast();
   const { data: analytics, isLoading: analyticsLoading, mutate: mutateAnalytics } = useSWR<Analytics>('/documents/analytics', fetcher);
   const { data: auditLogs, isLoading: logsLoading } = useSWR<AuditLog[]>('/audit/recent', fetcher);
 
@@ -107,11 +109,12 @@ export default function DashboardPage() {
         type: docType,
       });
 
-      setUploadMsg('Document uploaded and queued for AI extraction.');
+      addToast('Document uploaded and queued for AI extraction.', 'success');
+      setUploadMsg(null);
       setPendingFile(null);
       await mutateAnalytics();
     } catch {
-      setUploadMsg('Upload failed. Please try again.');
+      addToast('Upload failed. Please try again.', 'error');
     } finally {
       setUploading(false);
     }

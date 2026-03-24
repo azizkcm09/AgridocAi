@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import useSWR from 'swr';
+import fetcher from '@/lib/fetcher';
 import { isAuthenticated, clearToken, getUserEmail } from '@/lib/auth';
 
 // --- Navigation items ---
@@ -57,6 +59,50 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const pathname = usePathname();
   const [email, setEmail]     = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  // Poll for documents needing review every 15s
+  const { data: reviewData } = useSWR<{ data: { id: string; originalName: string; createdAt: string }[] }>(
+    mounted ? '/documents?status=REVIEW_REQUIRED&limit=5' : null,
+    fetcher,
+    { refreshInterval: 15000 },
+  );
+
+  const reviewDocs = reviewData?.data ?? [];
+
+  // Track seen document IDs — React state + localStorage for persistence
+  const seenKey = 'notif-seen-ids';
+  const [seenIds, setSeenIds] = useState<string[]>(() =>
+    typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(seenKey) ?? '[]') : [],
+  );
+  const unreadCount = reviewDocs.filter((d) => !seenIds.includes(d.id)).length;
+
+  function markOneRead(id: string) {
+    setSeenIds((prev) => {
+      const updated = [...new Set([...prev, id])];
+      localStorage.setItem(seenKey, JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function markAllRead() {
+    const allIds = reviewDocs.map((d) => d.id);
+    setSeenIds(allIds);
+    localStorage.setItem(seenKey, JSON.stringify(allIds));
+    setBellOpen(false);
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   // useEffect only runs in the browser, never on the server.
   // We set mounted=true here so the server and client first render both return null,
@@ -159,8 +205,94 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             />
           </div>
 
-          {/* User info */}
+          {/* Notification bell + User info */}
           <div className="flex items-center gap-3">
+
+            {/* Bell */}
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => setBellOpen((v) => !v)}
+                className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown */}
+              {bellOpen && (
+                <div className="absolute right-0 top-10 w-80 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-800">Ready for Review</p>
+                    {reviewDocs.length > 0 && (
+                      <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  {reviewDocs.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-6">No documents pending review.</p>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto">
+                      {reviewDocs.map((doc) => {
+                        const isRead = seenIds.includes(doc.id);
+                        return (
+                          <div
+                            key={doc.id}
+                            className={`flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0 transition-all ${isRead ? 'opacity-50 hover:opacity-100' : ''} hover:bg-gray-50`}
+                          >
+                            <button
+                              onClick={() => { markOneRead(doc.id); router.push(`/documents/${doc.id}`); setBellOpen(false); }}
+                              className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                            >
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isRead ? 'bg-gray-50' : 'bg-yellow-50'}`}>
+                                <svg className={`w-3.5 h-3.5 ${isRead ? 'text-gray-400' : 'text-yellow-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-800 truncate">{doc.originalName}</p>
+                                <p className="text-xs text-gray-400">
+                                  {(() => {
+                                    const diff = Date.now() - new Date(doc.createdAt).getTime();
+                                    const mins = Math.floor(diff / 60000);
+                                    if (mins < 1) return 'just now';
+                                    if (mins < 60) return `${mins}m ago`;
+                                    const hrs = Math.floor(mins / 60);
+                                    if (hrs < 24) return `${hrs}h ago`;
+                                    return `${Math.floor(hrs / 24)}d ago`;
+                                  })()}
+                                </p>
+                              </div>
+                            </button>
+                            {!isRead && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); markOneRead(doc.id); }}
+                                title="Mark as read"
+                                className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* User avatar */}
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
