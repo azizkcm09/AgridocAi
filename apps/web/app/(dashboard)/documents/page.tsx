@@ -17,19 +17,17 @@ type Document = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:          'bg-gray-100 text-gray-600',
-  PROCESSING:       'bg-blue-50 text-blue-600',
-  REVIEW_REQUIRED:  'bg-yellow-50 text-yellow-700',
-  VALIDATED:        'bg-green-50 text-green-700',
-  REJECTED:         'bg-red-50 text-red-600',
-  ERROR:            'bg-red-100 text-red-700 font-semibold',
+  PENDING:          'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+  PROCESSING:       'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+  REVIEW_REQUIRED:  'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+  VALIDATED:        'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+  REJECTED:         'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+  ERROR:            'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold',
 };
 
 const PAGE_SIZE = 8;
 
 // Build the SWR key from current filters
-// SWR caches each unique key separately, so page=1&type=INVOICE is cached
-// independently from page=2&type=INVOICE — instant back-navigation
 function buildKey(page: number, search: string, type: string, status: string) {
   const params = new URLSearchParams();
   params.set('page',  String(page));
@@ -95,7 +93,6 @@ export default function DocumentsPage() {
     try {
       await api.delete(`/documents/${deleteTarget.id}`);
       setDeleteTarget(null);
-      // Tell SWR to refetch the current page
       mutate();
     } catch {
       // keep modal open so user sees something went wrong
@@ -134,7 +131,7 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-4">
 
-      <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Documents</h1>
 
       {/* -- FILTERS -- */}
       <div className="flex items-center gap-3">
@@ -150,14 +147,14 @@ export default function DocumentsPage() {
             placeholder="Search by filename..."
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         <select
           value={typeFilter}
           onChange={(e) => handleTypeChange(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="ALL">Type: All</option>
           <option value="INVOICE">Invoice</option>
@@ -169,7 +166,7 @@ export default function DocumentsPage() {
         <select
           value={statusFilter}
           onChange={(e) => handleStatusChange(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="ALL">Status: All</option>
           <option value="PENDING">Pending</option>
@@ -182,15 +179,15 @@ export default function DocumentsPage() {
       </div>
 
       {/* -- TABLE -- */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-visible">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-visible">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-left">
-              <th className="px-4 py-3 font-medium text-gray-500">Document Name</th>
-              <th className="px-4 py-3 font-medium text-gray-500">Type</th>
-              <th className="px-4 py-3 font-medium text-gray-500">Upload Date</th>
-              <th className="px-4 py-3 font-medium text-gray-500">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-500 w-16">Actions</th>
+            <tr className="border-b border-gray-100 dark:border-gray-800 text-left">
+              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Document Name</th>
+              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Type</th>
+              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Upload Date</th>
+              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-16">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -209,26 +206,26 @@ export default function DocumentsPage() {
                 <tr
                   key={doc.id}
                   onClick={() => router.push(`/documents/${doc.id}`)}
-                  className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
                 >
-                  <td className="px-4 py-3 text-blue-600 font-medium max-w-xs truncate">
+                  <td className="px-4 py-3 text-blue-600 dark:text-blue-400 font-medium max-w-xs truncate">
                     {doc.originalName}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 capitalize">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 capitalize">
                     {doc.type.charAt(0) + doc.type.slice(1).toLowerCase()}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {formatDate(doc.createdAt)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs ${STATUS_COLORS[doc.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs ${STATUS_COLORS[doc.status] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
                       {doc.status.charAt(0) + doc.status.slice(1).toLowerCase().replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-3 relative" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setOpenMenu(openMenu === doc.id ? null : doc.id)}
-                      className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     >
                       ⋮
                     </button>
@@ -236,18 +233,18 @@ export default function DocumentsPage() {
                     {openMenu === doc.id && (
                       <div
                         ref={menuRef}
-                        className={`absolute right-4 ${dropdownPosition(index)} z-20 bg-white border border-gray-200 rounded-lg shadow-lg w-36 py-1`}
+                        className={`absolute right-4 ${dropdownPosition(index)} z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg w-36 py-1`}
                       >
                         <button
                           onClick={() => { setOpenMenu(null); router.push(`/documents/${doc.id}`); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
                           View
                         </button>
                         {doc.status === 'REVIEW_REQUIRED' && (
                           <button
                             onClick={() => { setOpenMenu(null); router.push(`/documents/${doc.id}`); }}
-                            className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                            className="w-full text-left px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                           >
                             Validate
                           </button>
@@ -255,14 +252,14 @@ export default function DocumentsPage() {
                         {doc.status === 'VALIDATED' && (
                           <button
                             onClick={() => handleExport(doc)}
-                            className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50"
+                            className="w-full text-left px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                           >
                             Export
                           </button>
                         )}
                         <button
                           onClick={() => { setOpenMenu(null); setDeleteTarget(doc); }}
-                          className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
+                          className="w-full text-left px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                         >
                           Delete
                         </button>
@@ -278,14 +275,14 @@ export default function DocumentsPage() {
 
       {/* Delete confirmation modal */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Document">
-        <p className="text-sm text-gray-600 mb-1">
-          Are you sure you want to delete <span className="font-medium text-gray-800">{deleteTarget?.originalName}</span>?
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+          Are you sure you want to delete <span className="font-medium text-gray-800 dark:text-gray-200">{deleteTarget?.originalName}</span>?
         </p>
         <p className="text-xs text-gray-400 mb-5">This document will be removed from your list. Audit logs are preserved.</p>
         <div className="flex gap-3">
           <button
             onClick={() => setDeleteTarget(null)}
-            className="flex-1 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             Cancel
           </button>
@@ -300,20 +297,20 @@ export default function DocumentsPage() {
       </Modal>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
           <span>Page {page} of {totalPages} · {total} total</span>
           <div className="flex gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ‹
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ›
             </button>

@@ -156,9 +156,9 @@ export default function DashboardPage() {
   }
 
   function auditIconStyle(action: string) {
-    if (action === 'VALIDATE_DOC') return 'text-green-600 bg-green-50';
-    if (action === 'DELETE_DOC')   return 'text-red-600 bg-red-50';
-    return 'text-blue-600 bg-blue-50';
+    if (action === 'VALIDATE_DOC') return 'text-green-600 bg-green-50 dark:bg-green-900/30';
+    if (action === 'DELETE_DOC')   return 'text-red-600 bg-red-50 dark:bg-red-900/30';
+    return 'text-blue-600 bg-blue-50 dark:bg-blue-900/30';
   }
 
   if (loading) {
@@ -170,49 +170,49 @@ export default function DashboardPage() {
 
       {/* Page title */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back.</h1>
-        <p className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome back.</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Total Documents</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.total ?? 0}</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Documents</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.total ?? 0}</p>
           <WowIndicator current={kpis?.thisWeekCount ?? 0} previous={kpis?.lastWeekCount ?? 0} />
         </div>
 
         <div
           onClick={() => router.push('/documents?status=REVIEW_REQUIRED')}
-          className="bg-white rounded-xl border border-gray-100 p-5 hover:border-yellow-200 cursor-pointer transition-colors"
+          className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5 hover:border-yellow-200 dark:hover:border-yellow-700 cursor-pointer transition-colors"
         >
-          <p className="text-sm text-gray-500">Pending Review</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.pendingReview ?? 0}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Pending Review</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.pendingReview ?? 0}</p>
           {(kpis?.pendingReview ?? 0) > 0 && (
-            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-yellow-50 text-yellow-700 border border-yellow-200">
+            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-700">
               Needs attention
             </span>
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Avg. Confidence</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.avgConfidence ?? 0}%</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Confidence</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.avgConfidence ?? 0}%</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Validation Rate</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.validationRate ?? 0}%</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Validation Rate</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.validationRate ?? 0}%</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Rejection Rate</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.rejectionRate ?? 0}%</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Rejection Rate</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.rejectionRate ?? 0}%</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Avg. Processing</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{formatSeconds(kpis?.avgProcessingTimeSec ?? 0)}</p>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Processing</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{formatSeconds(kpis?.avgProcessingTimeSec ?? 0)}</p>
         </div>
       </div>
 
@@ -230,14 +230,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-5 gap-4">
 
         {/* Upload zone - 3/5 width */}
-        <div className="col-span-5 lg:col-span-3 bg-white rounded-xl border border-gray-100 p-5">
+        <div className="col-span-5 lg:col-span-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
 
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-gray-700">Upload Document</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Upload Document</p>
             <select
               value={docType}
               onChange={(e) => setDocType(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {DOC_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -252,10 +252,10 @@ export default function DashboardPage() {
             onClick={() => !uploading && !pendingFile && fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center py-14 transition-colors ${
               pendingFile
-                ? 'border-blue-400 bg-blue-50'
+                ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20'
                 : isDragging
-                  ? 'border-blue-400 bg-blue-50 cursor-pointer'
-                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50 cursor-pointer'
+                  ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 cursor-pointer'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'
             }`}
           >
             {pendingFile ? (
@@ -264,16 +264,16 @@ export default function DashboardPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="text-sm font-medium text-gray-800">{pendingFile.name}</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{pendingFile.name}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{formatBytes(pendingFile.size)} &middot; {pendingFile.type || 'unknown type'}</p>
               </>
             ) : (
               <>
-                <svg className="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                     d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
                 </svg>
-                <p className="text-sm font-medium text-gray-600">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   {uploading ? 'Uploading...' : 'Drop invoice or certificate here to process.'}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">or click to select files</p>
@@ -292,13 +292,13 @@ export default function DashboardPage() {
             <div className="flex gap-3 mt-3">
               <button
                 onClick={() => { setPendingFile(null); setUploadMsg(null); }}
-                className="flex-1 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleUpload(pendingFile)}
-                className="flex-1 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                className="flex-1 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors"
               >
                 Proceed
               </button>
@@ -306,17 +306,17 @@ export default function DashboardPage() {
           )}
 
           {uploadMsg && (
-            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('Document uploaded') ? 'text-green-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-gray-500'}`}>
+            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('Document uploaded') ? 'text-green-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
               {uploadMsg}
             </p>
           )}
         </div>
 
         {/* Audit logs - 2/5 width */}
-        <div className="col-span-5 lg:col-span-2 bg-white rounded-xl border border-gray-100 p-5">
+        <div className="col-span-5 lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-gray-700">Recent Audit Logs</p>
-            <Link href="/audit" className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Recent Audit Logs</p>
+            <Link href="/audit" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors">
               View all
             </Link>
           </div>
@@ -330,14 +330,14 @@ export default function DashboardPage() {
                   key={log.id}
                   onClick={() => log.documentId && router.push(`/documents/${log.documentId}`)}
                   className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
-                    log.documentId ? 'hover:bg-gray-50 cursor-pointer' : ''
+                    log.documentId ? 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer' : ''
                   }`}
                 >
                   <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${auditIconStyle(log.action)}`}>
                     {auditIconChar(log.action)}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 truncate">
+                    <p className="text-sm text-gray-800 dark:text-gray-200 truncate">
                       {log.document?.originalName ?? <span className="text-gray-400 italic">Deleted document</span>}
                     </p>
                     <p className="text-xs text-gray-400 capitalize">{log.action.toLowerCase().replace(/_/g, ' ')}</p>

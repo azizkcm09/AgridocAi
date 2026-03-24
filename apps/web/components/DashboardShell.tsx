@@ -6,6 +6,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import fetcher from '@/lib/fetcher';
 import { isAuthenticated, clearToken, getUserEmail } from '@/lib/auth';
+import { useTheme } from '@/lib/theme-context';
 
 // --- Navigation items ---
 const NAV_ITEMS = [
@@ -57,6 +58,7 @@ const NAV_ITEMS = [
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
   const [email, setEmail]     = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -138,14 +140,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
 
       {/* ── SIDEBAR ── */}
-      <aside className="w-64 shrink-0 bg-white border-r border-gray-100 flex flex-col">
+      <aside className="w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col">
 
         {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-100">
-          <span className="text-lg font-bold text-gray-900">AgriDoc-Ai</span>
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 dark:border-gray-800">
+          <span className="text-lg font-bold text-gray-900 dark:text-gray-100">AgriDoc-Ai</span>
         </div>
 
         {/* Navigation links */}
@@ -159,8 +161,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-blue-50 text-blue-600'       // active: blue highlight
-                    : 'text-gray-600 hover:bg-gray-50'  // inactive: subtle hover
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}
               >
                 {item.icon}
@@ -171,10 +173,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </nav>
 
         {/* Logout button — pinned to the bottom */}
-        <div className="px-3 py-4 border-t border-gray-100">
+        <div className="px-3 py-4 border-t border-gray-100 dark:border-gray-800">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -189,7 +191,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Top header */}
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
+        <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 shrink-0">
           {/* Search bar — hidden on /documents since that page has its own search */}
           <div className={`relative w-80 ${pathname.startsWith('/documents') ? 'invisible' : ''}`}>
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
@@ -201,20 +203,39 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               type="text"
               placeholder="Search..."
               onKeyDown={handleSearch}
-              className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
-          {/* Notification bell + User info */}
+          {/* Notification bell + Theme toggle + User info */}
           <div className="flex items-center gap-3">
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
 
             {/* Bell */}
             <div className="relative" ref={bellRef}>
               <button
                 onClick={() => setBellOpen((v) => !v)}
-                className="relative w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                className="relative w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
@@ -227,11 +248,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
               {/* Dropdown */}
               {bellOpen && (
-                <div className="absolute right-0 top-10 w-80 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-800">Ready for Review</p>
+                <div className="absolute right-0 top-10 w-80 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Ready for Review</p>
                     {reviewDocs.length > 0 && (
-                      <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                      <button onClick={markAllRead} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
                         Mark all as read
                       </button>
                     )}
@@ -245,20 +266,20 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                         return (
                           <div
                             key={doc.id}
-                            className={`flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0 transition-all ${isRead ? 'opacity-50 hover:opacity-100' : ''} hover:bg-gray-50`}
+                            className={`flex items-center gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-800 last:border-0 transition-all ${isRead ? 'opacity-50 hover:opacity-100' : ''} hover:bg-gray-50 dark:hover:bg-gray-800`}
                           >
                             <button
                               onClick={() => { markOneRead(doc.id); router.push(`/documents/${doc.id}`); setBellOpen(false); }}
                               className="flex items-center gap-3 flex-1 min-w-0 text-left"
                             >
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isRead ? 'bg-gray-50' : 'bg-yellow-50'}`}>
-                                <svg className={`w-3.5 h-3.5 ${isRead ? 'text-gray-400' : 'text-yellow-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isRead ? 'bg-gray-50 dark:bg-gray-800' : 'bg-yellow-50 dark:bg-yellow-900/30'}`}>
+                                <svg className={`w-3.5 h-3.5 ${isRead ? 'text-gray-400' : 'text-yellow-600 dark:text-yellow-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-gray-800 truncate">{doc.originalName}</p>
+                                <p className="text-sm text-gray-800 dark:text-gray-200 truncate">{doc.originalName}</p>
                                 <p className="text-xs text-gray-400">
                                   {(() => {
                                     const diff = Date.now() - new Date(doc.createdAt).getTime();
@@ -276,7 +297,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                               <button
                                 onClick={(e) => { e.stopPropagation(); markOneRead(doc.id); }}
                                 title="Mark as read"
-                                className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                                className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -293,13 +314,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </div>
 
             {/* User avatar */}
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-sm text-gray-600">{email ?? 'user@example.com'}</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">{email ?? 'user@example.com'}</span>
           </div>
         </header>
 

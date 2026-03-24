@@ -30,21 +30,21 @@ export default function SettingsPage() {
   function StatusBadge({ status }: { status: 'connected' | 'disconnected' | 'checking' }) {
     if (status === 'checking') {
       return (
-        <span className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+        <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
           Checking...
         </span>
       );
     }
     if (status === 'connected') {
       return (
-        <span className="flex items-center gap-1.5 text-sm text-green-600 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
+        <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 rounded-lg px-3 py-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500" />
           Connected
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-1.5">
+      <span className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-lg px-3 py-1.5">
         <span className="w-2 h-2 rounded-full bg-red-500" />
         Disconnected
       </span>
@@ -55,45 +55,45 @@ export default function SettingsPage() {
     <div className="space-y-6">
 
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage your account and monitor system health.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your account and monitor system health.</p>
       </div>
 
       {/* Account section */}
-      <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
         <div className="p-5">
-          <h2 className="text-sm font-semibold text-gray-800">Account</h2>
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Account</h2>
         </div>
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">Email address</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Email address</p>
             <p className="text-xs text-gray-400 mt-0.5">Your login email</p>
           </div>
-          <span className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+          <span className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
             {email ?? '—'}
           </span>
         </div>
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">Role</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Role</p>
             <p className="text-xs text-gray-400 mt-0.5">Your access level</p>
           </div>
-          <span className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+          <span className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
             Operator
           </span>
         </div>
       </div>
 
-      {/* System health section — real checks */}
-      <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
+      {/* System health section */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
         <div className="p-5 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-800">System Health</h2>
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">System Health</h2>
           <button
             onClick={checkHealth}
             disabled={checking}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors disabled:opacity-50"
+            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors disabled:opacity-50"
           >
             {checking ? 'Checking...' : 'Refresh'}
           </button>
@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">API</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">API</p>
             <p className="text-xs text-gray-400 mt-0.5">NestJS backend</p>
           </div>
           <StatusBadge status={health ? 'connected' : (checking ? 'checking' : 'disconnected')} />
@@ -109,7 +109,7 @@ export default function SettingsPage() {
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">Database</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Database</p>
             <p className="text-xs text-gray-400 mt-0.5">PostgreSQL via Prisma</p>
           </div>
           <StatusBadge status={checking ? 'checking' : (health?.database ?? 'disconnected')} />
@@ -117,7 +117,7 @@ export default function SettingsPage() {
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">AI Service</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">AI Service</p>
             <p className="text-xs text-gray-400 mt-0.5">FastAPI OCR worker</p>
           </div>
           <StatusBadge status={checking ? 'checking' : (health?.ai ?? 'disconnected')} />
@@ -125,27 +125,27 @@ export default function SettingsPage() {
       </div>
 
       {/* About section */}
-      <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
         <div className="p-5">
-          <h2 className="text-sm font-semibold text-gray-800">About</h2>
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">About</h2>
         </div>
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">Version</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Version</p>
             <p className="text-xs text-gray-400 mt-0.5">Current application version</p>
           </div>
-          <span className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+          <span className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
             1.0.0
           </span>
         </div>
 
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">Stack</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Stack</p>
             <p className="text-xs text-gray-400 mt-0.5">Core technologies</p>
           </div>
-          <span className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+          <span className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
             Next.js + NestJS + FastAPI
           </span>
         </div>

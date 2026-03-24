@@ -10,8 +10,8 @@ type Props = {
 
 export default function DocumentsByTypeChart({ data }: Props) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5">
-      <p className="text-sm font-medium text-gray-700 mb-4">By Document Type</p>
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">By Document Type</p>
       {data.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-8">No data yet.</p>
       ) : (
