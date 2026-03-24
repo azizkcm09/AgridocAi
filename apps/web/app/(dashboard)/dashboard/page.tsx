@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import useSWR from 'swr';
 import api from '@/lib/api';
+import fetcher from '@/lib/fetcher';
 import axios from 'axios';
 
 // Shape of GET /documents/stats response
@@ -31,11 +33,11 @@ const DOC_TYPES = [
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [stats, setStats]         = useState<Stats | null>(null);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [loading, setLoading]     = useState(true);
+  // SWR: fetch stats and audit logs with caching + auto-revalidation
+  const { data: stats, isLoading: statsLoading, mutate: mutateStats } = useSWR<Stats>('/documents/stats', fetcher);
+  const { data: auditLogs, isLoading: logsLoading } = useSWR<AuditLog[]>('/audit/recent', fetcher);
 
-  // Upload state
+  // Upload state (unchanged — uploads are mutations, not cached reads)
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [uploadMsg, setUploadMsg]   = useState<string | null>(null);
@@ -43,31 +45,7 @@ export default function DashboardPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef                = useRef<HTMLInputElement>(null);
 
-  // Extracted into its own function so we can call it after upload too
-  // useCallback gives it a stable reference so the useEffect dependency is safe
-  const loadStats = useCallback(async () => {
-    const res = await api.get('/documents/stats');
-    setStats(res.data); // { total, pendingReview, avgConfidence }
-  }, []);
-
-  // --- Fetch stats + audit logs on page load ---
-  useEffect(() => {
-    async function load() {
-      try {
-        // Both run at the same time
-        const [, auditRes] = await Promise.all([
-          loadStats(),
-          api.get('/audit/recent'),
-        ]);
-        setAuditLogs(auditRes.data);
-      } catch {
-        router.push('/login');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [router, loadStats]);
+  const loading = statsLoading || logsLoading;
 
   // --- Upload: 3-step pipeline ---
   async function handleUpload(file: File) {
@@ -81,7 +59,7 @@ export default function DashboardPage() {
       });
       const { uploadUrl, key } = urlRes.data;
 
-      // Step 2: upload directly to MinIO (plain axios — no JWT header, presigned URL handles auth)
+      // Step 2: upload directly to MinIO
       setUploadMsg('Uploading file...');
       await axios.put(uploadUrl, file, {
         headers: { 'Content-Type': file.type },
@@ -100,8 +78,8 @@ export default function DashboardPage() {
       setUploadMsg('✓ Document uploaded and queued for AI extraction.');
       setPendingFile(null);
 
-      // Refresh stats cards so Total Processed updates immediately
-      await loadStats();
+      // Tell SWR to refetch stats (cache was invalidated on the backend too)
+      await mutateStats();
     } catch {
       setUploadMsg('Upload failed. Please try again.');
     } finally {
@@ -119,7 +97,6 @@ export default function DashboardPage() {
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) setPendingFile(file);
-    // Reset input so the same file can be re-selected
     if (e.target) e.target.value = '';
   }
 
@@ -164,7 +141,7 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
       </div>
 
-      {/* ── STATS CARDS — real numbers from GET /documents/stats ── */}
+      {/* ── STATS CARDS ── */}
       <div className="grid grid-cols-3 gap-4">
 
         <div className="bg-white rounded-xl border border-gray-100 p-5">
@@ -287,7 +264,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {auditLogs.length === 0 ? (
+          {!auditLogs || auditLogs.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">No recent activity.</p>
           ) : (
             <div className="space-y-1">

@@ -7,10 +7,12 @@ import { DocumentsModule } from './documents/documents.module';
 import { StorageModule } from './storage/storage.module';
 import { AuditModule } from './audit/audit.module';
 import { BullModule } from '@nestjs/bullmq';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
     PrismaModule,
+    CacheModule,
     UsersModule,
     AuthModule,
     DocumentsModule,

@@ -6,14 +6,23 @@ import { BadRequestException } from '@nestjs/common';
 import { getPayloadSchema } from './dto/extraction.schema';
 import type { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq/dist/decorators/inject-queue.decorator';
+import { CacheService } from '../cache/cache.service';
+
 
 @Injectable()
 export class DocumentsService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
+    private cache: CacheService,
     @InjectQueue('document-processing') private documentQueue: Queue,
   ) {}
+
+  // Invalidate cached stats for a specific user
+  // Called after any action that changes document counts or confidence
+  private async clearStatsCache(userId: string) {
+    await this.cache.del(`stats:${userId}`);
+  }
 
   // --- CREATE: Save metadata after MinIO upload ---
   async createDocument(userId: string, dto: CreateDocumentDto) {
@@ -40,6 +49,8 @@ export class DocumentsService {
       storagePath: document.storagePath,
       userId: userId,
     });
+
+    await this.clearStatsCache(userId);
 
     return document;
   }
@@ -74,7 +85,12 @@ export class DocumentsService {
 
   // --- READ: Aggregate stats for the dashboard ---
   async getStats(userId: string) {
-    // deletedAt: null — soft-deleted documents don't count in stats
+    // 1. Check Redis cache first
+    const cacheKey = `stats:${userId}`;
+    const cached = await this.cache.get<{ total: number; pendingReview: number; avgConfidence: number }>(cacheKey);
+    if (cached) return cached;  // Cache hit — skip Postgres entirely
+
+    // 2. Cache miss — query Postgres
     const [total, pendingReview, extractionData] = await Promise.all([
       this.prisma.document.count({
         where: { userId, deletedAt: null },
@@ -96,7 +112,12 @@ export class DocumentsService {
           )
         : 0;
 
-    return { total, pendingReview, avgConfidence };
+    const stats = { total, pendingReview, avgConfidence };
+
+    // 3. Store in Redis with 30s TTL
+    await this.cache.set(cacheKey, stats, 30);
+
+    return stats;
   }
 
   // --- READ: Get specific document details ---
@@ -138,6 +159,8 @@ export class DocumentsService {
       description: `User deleted document: ${document.originalName}`,
     });
 
+    await this.clearStatsCache(userId);
+
     return { message: 'Document deleted successfully' };
   }
 
@@ -162,6 +185,8 @@ export class DocumentsService {
         ? `User rejected document: ${reason}`
         : 'User rejected document',
     });
+
+    await this.clearStatsCache(userId);
 
     return { message: 'Document rejected' };
   }
@@ -208,6 +233,8 @@ export class DocumentsService {
         newValue: newData,
       });
 
+      await this.clearStatsCache(userId);
+
       return updatedData;
     });
   }
@@ -248,6 +275,8 @@ export class DocumentsService {
       newValue: dto.payload,
     });
 
+    await this.clearStatsCache(document.userId);
+
     return { message: 'Extraction saved', documentId };
   }
   // --- ERROR CALLBACK: AI service reports a processing failure ---
@@ -269,6 +298,8 @@ export class DocumentsService {
       action: 'AUTO_EXTRACT',
       description: `AI extraction failed: ${error}`,
     });
+
+    await this.clearStatsCache(document.userId);
 
     return { message: 'Error recorded', documentId };
   }

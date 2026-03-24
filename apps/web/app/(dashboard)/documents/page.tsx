@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import useSWR from 'swr';
 import api from '@/lib/api';
+import fetcher from '@/lib/fetcher';
 import Modal from '@/components/Modal';
 
 type Document = {
@@ -24,17 +26,26 @@ const STATUS_COLORS: Record<string, string> = {
 
 const PAGE_SIZE = 8;
 
+// Build the SWR key from current filters
+// SWR caches each unique key separately, so page=1&type=INVOICE is cached
+// independently from page=2&type=INVOICE — instant back-navigation
+function buildKey(page: number, search: string, type: string, status: string) {
+  const params = new URLSearchParams();
+  params.set('page',  String(page));
+  params.set('limit', String(PAGE_SIZE));
+  if (search)          params.set('search', search);
+  if (type   !== 'ALL') params.set('type',   type);
+  if (status !== 'ALL') params.set('status', status);
+  return `/documents?${params.toString()}`;
+}
+
 export default function DocumentsPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [total, setTotal]         = useState(0);
-  const [loading, setLoading]     = useState(true);
-
   const [search, setSearch]             = useState(searchParams.get('search') ?? '');
   const [typeFilter, setTypeFilter]     = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? 'ALL');
   const [page, setPage]                 = useState(1);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -42,6 +53,12 @@ export default function DocumentsPage() {
   const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // SWR: fetch documents with caching per filter combination
+  const swrKey = buildKey(page, search, typeFilter, statusFilter);
+  const { data, isLoading, mutate } = useSWR<{ data: Document[]; total: number }>(swrKey, fetcher);
+
+  const documents = data?.data ?? [];
+  const total     = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   // Close dropdown when clicking outside
@@ -56,35 +73,6 @@ export default function DocumentsPage() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [openMenu]);
-
-  const fetchDocuments = useCallback(async (
-    currentPage: number,
-    currentSearch: string,
-    currentType: string,
-    currentStatus: string,
-  ) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set('page',  String(currentPage));
-      params.set('limit', String(PAGE_SIZE));
-      if (currentSearch)              params.set('search', currentSearch);
-      if (currentType   !== 'ALL')    params.set('type',   currentType);
-      if (currentStatus !== 'ALL')    params.set('status', currentStatus);
-
-      const res = await api.get(`/documents?${params.toString()}`);
-      setDocuments(res.data.data);
-      setTotal(res.data.total);
-    } catch {
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
-
-  useEffect(() => {
-    fetchDocuments(page, search, typeFilter, statusFilter);
-  }, [page, search, typeFilter, statusFilter, fetchDocuments]);
 
   function handleSearchChange(value: string) {
     setSearch(value);
@@ -105,7 +93,8 @@ export default function DocumentsPage() {
     try {
       await api.delete(`/documents/${deleteTarget.id}`);
       setDeleteTarget(null);
-      fetchDocuments(page, search, typeFilter, statusFilter);
+      // Tell SWR to refetch the current page
+      mutate();
     } catch {
       // keep modal open so user sees something went wrong
     } finally {
@@ -119,7 +108,6 @@ export default function DocumentsPage() {
     });
   }
 
-  // Determine if the dropdown should open upward (for rows near the bottom)
   function dropdownPosition(index: number) {
     const isNearBottom = index >= documents.length - 2;
     return isNearBottom ? 'bottom-10' : 'top-10';
@@ -188,7 +176,7 @@ export default function DocumentsPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {isLoading ? (
               <tr>
                 <td colSpan={5} className="text-center py-12 text-gray-400">Loading...</td>
               </tr>
@@ -262,7 +250,6 @@ export default function DocumentsPage() {
         </table>
       </div>
 
-      {/* -- PAGINATION -- */}
       {/* Delete confirmation modal */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Document">
         <p className="text-sm text-gray-600 mb-1">

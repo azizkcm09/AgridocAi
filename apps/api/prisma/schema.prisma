@@ -72,6 +72,9 @@ model Document {
   // Soft delete: set this instead of destroying the row
   // Queries filter WHERE deletedAt IS NULL to exclude deleted documents
   deletedAt    DateTime?
+  @@index([userId, deletedAt, status])
+  @@index([userId, deletedAt, type])
+  @@index([userId, deletedAt, createdAt])
 }
 
 model ExtractedData {
@@ -109,4 +112,11 @@ model AuditLog {
   document    Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   timestamp   DateTime    @default(now())
+  
+    // --- INDEXES ---
+  // Covers getUserRecentLogs and findAll (ordered by timestamp)
+  @@index([userId, timestamp])
+  // Covers getDocumentHistory
+  @@index([documentId, timestamp])
+
 }
