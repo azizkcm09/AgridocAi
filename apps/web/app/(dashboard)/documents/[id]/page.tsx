@@ -107,6 +107,7 @@ export default function DocumentDetailPage() {
   const [saveMsg, setSaveMsg]       = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -172,6 +173,25 @@ export default function DocumentDetailPage() {
       addToast('Failed to reject document.', 'error');
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Export PDF
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await api.get(`/documents/${id}/export`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `agridoc-report-${id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      addToast('PDF exported successfully.', 'success');
+    } catch {
+      addToast('Failed to export PDF.', 'error');
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -420,9 +440,19 @@ export default function DocumentDetailPage() {
               </div>
             )}
 
-            {/* Back button when not editable */}
+            {/* Back + Export buttons when not editable */}
             {!canEdit && (
-              <div className="px-5 py-4 border-t border-gray-100">
+              <div className="px-5 py-4 border-t border-gray-100 space-y-2">
+                {doc.status === 'VALIDATED' && (
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    disabled={exporting}
+                    className="w-full py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                  >
+                    {exporting ? 'Exporting...' : 'Export PDF'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => router.push('/documents')}

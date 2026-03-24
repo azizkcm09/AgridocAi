@@ -4,6 +4,7 @@ import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DocumentsProcessor } from './documents.processor';
+import { PdfExportService } from './pdf-export.service';
 @Module({
   imports: [
     PrismaModule,
@@ -13,7 +14,7 @@ import { DocumentsProcessor } from './documents.processor';
     }),
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, DocumentsProcessor],
+  providers: [DocumentsService, DocumentsProcessor, PdfExportService],
   exports: [DocumentsService],
 })
 export class DocumentsModule {}

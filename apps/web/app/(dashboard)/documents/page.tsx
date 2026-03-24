@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import api from '@/lib/api';
 import fetcher from '@/lib/fetcher';
+import { useToast } from '@/lib/toast-context';
 import Modal from '@/components/Modal';
 
 type Document = {
@@ -48,6 +49,7 @@ export default function DocumentsPage() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? 'ALL');
   const [page, setPage]                 = useState(1);
 
+  const { addToast } = useToast();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -99,6 +101,22 @@ export default function DocumentsPage() {
       // keep modal open so user sees something went wrong
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleExport(doc: Document) {
+    setOpenMenu(null);
+    try {
+      const res = await api.get(`/documents/${doc.id}/export`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `agridoc-report-${doc.id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      addToast('PDF exported successfully.', 'success');
+    } catch {
+      addToast('Failed to export PDF.', 'error');
     }
   }
 
@@ -232,6 +250,14 @@ export default function DocumentsPage() {
                             className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
                           >
                             Validate
+                          </button>
+                        )}
+                        {doc.status === 'VALIDATED' && (
+                          <button
+                            onClick={() => handleExport(doc)}
+                            className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50"
+                          >
+                            Export
                           </button>
                         )}
                         <button

@@ -8,12 +8,15 @@ import {
   Param,
   Query,
   UseGuards,
-  Req
+  Req,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/public.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { DocumentsService } from './documents.service';
+import { PdfExportService } from './pdf-export.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { ExtractionCallbackDto } from './dto/extraction-callback.dto';
 
@@ -22,7 +25,10 @@ import { ExtractionCallbackDto } from './dto/extraction-callback.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly pdfExportService: PdfExportService,
+  ) {}
 
   // --- 1. CREATE: Sync metadata after successful MinIO upload ---
   @Post()
@@ -91,7 +97,20 @@ export class DocumentsController {
   }
 
 
-  // --- 6. READ: Get one document ---
+  // --- 6. EXPORT: Generate PDF report for a validated document ---
+  @Get(':id/export')
+  @ApiOperation({ summary: 'Export validated document as PDF report' })
+  async exportPdf(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
+    const buffer = await this.pdfExportService.generateReport(id, req.user.userId);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="agridoc-report-${id}.pdf"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  // --- 7. READ: Get one document ---
   @Get(':id')
   @ApiOperation({ summary: 'Get specific document details' })
   findOne(@Param('id') id: string, @Req() req: any) {
