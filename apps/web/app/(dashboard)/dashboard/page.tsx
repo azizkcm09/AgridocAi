@@ -7,12 +7,26 @@ import useSWR from 'swr';
 import api from '@/lib/api';
 import fetcher from '@/lib/fetcher';
 import axios from 'axios';
+import DocumentsOverTimeChart from '@/components/charts/DocumentsOverTimeChart';
+import DocumentsByTypeChart from '@/components/charts/DocumentsByTypeChart';
+import DocumentsByStatusChart from '@/components/charts/DocumentsByStatusChart';
+import ConfidenceDistributionChart from '@/components/charts/ConfidenceDistributionChart';
 
-// Shape of GET /documents/stats response
-type Stats = {
-  total: number;
-  pendingReview: number;
-  avgConfidence: number;
+type Analytics = {
+  docsPerDay: { date: string; count: number }[];
+  docsByType: { type: string; count: number }[];
+  docsByStatus: { status: string; count: number }[];
+  confidenceDistribution: { bucket: string; count: number }[];
+  kpis: {
+    total: number;
+    pendingReview: number;
+    avgConfidence: number;
+    validationRate: number;
+    rejectionRate: number;
+    avgProcessingTimeSec: number;
+    thisWeekCount: number;
+    lastWeekCount: number;
+  };
 };
 
 type AuditLog = {
@@ -30,14 +44,35 @@ const DOC_TYPES = [
   { label: 'Unknown',     value: 'UNKNOWN' },
 ];
 
+function WowIndicator({ current, previous }: { current: number; previous: number }) {
+  if (previous === 0 && current === 0) return null;
+  const pct = previous === 0 ? 100 : Math.round(((current - previous) / previous) * 100);
+  const isUp = pct >= 0;
+  return (
+    <span className={`inline-flex items-center text-xs font-medium ${isUp ? 'text-green-600' : 'text-red-500'}`}>
+      {isUp ? (
+        <svg className="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+      ) : (
+        <svg className="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      )}
+      {Math.abs(pct)}% vs last week
+    </span>
+  );
+}
+
+function formatSeconds(sec: number) {
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
-  // SWR: fetch stats and audit logs with caching + auto-revalidation
-  const { data: stats, isLoading: statsLoading, mutate: mutateStats } = useSWR<Stats>('/documents/stats', fetcher);
+  const { data: analytics, isLoading: analyticsLoading, mutate: mutateAnalytics } = useSWR<Analytics>('/documents/analytics', fetcher);
   const { data: auditLogs, isLoading: logsLoading } = useSWR<AuditLog[]>('/audit/recent', fetcher);
 
-  // Upload state (unchanged — uploads are mutations, not cached reads)
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [uploadMsg, setUploadMsg]   = useState<string | null>(null);
@@ -45,27 +80,24 @@ export default function DashboardPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef                = useRef<HTMLInputElement>(null);
 
-  const loading = statsLoading || logsLoading;
+  const loading = analyticsLoading || logsLoading;
+  const kpis = analytics?.kpis;
 
-  // --- Upload: 3-step pipeline ---
   async function handleUpload(file: File) {
     setUploading(true);
     setUploadMsg('Requesting upload URL...');
     try {
-      // Step 1: presigned URL from NestJS
       const urlRes = await api.post('/storage/presigned-url', {
         fileName: file.name,
         contentType: file.type,
       });
       const { uploadUrl, key } = urlRes.data;
 
-      // Step 2: upload directly to MinIO
       setUploadMsg('Uploading file...');
       await axios.put(uploadUrl, file, {
         headers: { 'Content-Type': file.type },
       });
 
-      // Step 3: register document in NestJS → triggers BullMQ job → AI pipeline
       setUploadMsg('Queuing for AI extraction...');
       await api.post('/documents', {
         originalName: file.name,
@@ -75,11 +107,9 @@ export default function DashboardPage() {
         type: docType,
       });
 
-      setUploadMsg('✓ Document uploaded and queued for AI extraction.');
+      setUploadMsg('Document uploaded and queued for AI extraction.');
       setPendingFile(null);
-
-      // Tell SWR to refetch stats (cache was invalidated on the backend too)
-      await mutateStats();
+      await mutateAnalytics();
     } catch {
       setUploadMsg('Upload failed. Please try again.');
     } finally {
@@ -117,9 +147,9 @@ export default function DashboardPage() {
   }
 
   function auditIconChar(action: string) {
-    if (action === 'VALIDATE_DOC') return '✓';
-    if (action === 'DELETE_DOC')   return '✗';
-    return '↑';
+    if (action === 'VALIDATE_DOC') return '\u2713';
+    if (action === 'DELETE_DOC')   return '\u2717';
+    return '\u2191';
   }
 
   function auditIconStyle(action: string) {
@@ -141,12 +171,12 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
       </div>
 
-      {/* ── STATS CARDS ── */}
-      <div className="grid grid-cols-3 gap-4">
-
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Total Processed</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.total ?? 0}</p>
+          <p className="text-sm text-gray-500">Total Documents</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.total ?? 0}</p>
+          <WowIndicator current={kpis?.thisWeekCount ?? 0} previous={kpis?.lastWeekCount ?? 0} />
         </div>
 
         <div
@@ -154,26 +184,50 @@ export default function DashboardPage() {
           className="bg-white rounded-xl border border-gray-100 p-5 hover:border-yellow-200 cursor-pointer transition-colors"
         >
           <p className="text-sm text-gray-500">Pending Review</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.pendingReview ?? 0}</p>
-          {(stats?.pendingReview ?? 0) > 0 && (
-            <span className="inline-block mt-2 px-2 py-0.5 text-xs rounded bg-yellow-50 text-yellow-700 border border-yellow-200">
+          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.pendingReview ?? 0}</p>
+          {(kpis?.pendingReview ?? 0) > 0 && (
+            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-yellow-50 text-yellow-700 border border-yellow-200">
               Needs attention
             </span>
           )}
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Avg. AI Confidence</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.avgConfidence ?? 0}%</p>
+          <p className="text-sm text-gray-500">Avg. Confidence</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.avgConfidence ?? 0}%</p>
         </div>
 
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <p className="text-sm text-gray-500">Validation Rate</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.validationRate ?? 0}%</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <p className="text-sm text-gray-500">Rejection Rate</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{kpis?.rejectionRate ?? 0}%</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <p className="text-sm text-gray-500">Avg. Processing</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{formatSeconds(kpis?.avgProcessingTimeSec ?? 0)}</p>
+        </div>
       </div>
 
-      {/* ── BOTTOM: Upload zone + Audit logs ── */}
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <DocumentsOverTimeChart data={analytics?.docsPerDay ?? []} />
+        <DocumentsByTypeChart data={analytics?.docsByType ?? []} />
+        <DocumentsByStatusChart data={analytics?.docsByStatus ?? []} />
+      </div>
+
+      {/* Confidence Distribution (full width) */}
+      <ConfidenceDistributionChart data={analytics?.confidenceDistribution ?? []} />
+
+      {/* Bottom: Upload zone + Audit logs */}
       <div className="grid grid-cols-5 gap-4">
 
-        {/* Upload zone — 3/5 width */}
-        <div className="col-span-3 bg-white rounded-xl border border-gray-100 p-5">
+        {/* Upload zone - 3/5 width */}
+        <div className="col-span-5 lg:col-span-3 bg-white rounded-xl border border-gray-100 p-5">
 
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-gray-700">Upload Document</p>
@@ -208,7 +262,7 @@ export default function DashboardPage() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <p className="text-sm font-medium text-gray-800">{pendingFile.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{formatBytes(pendingFile.size)} · {pendingFile.type || 'unknown type'}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{formatBytes(pendingFile.size)} &middot; {pendingFile.type || 'unknown type'}</p>
               </>
             ) : (
               <>
@@ -249,14 +303,14 @@ export default function DashboardPage() {
           )}
 
           {uploadMsg && (
-            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('✓') ? 'text-green-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-gray-500'}`}>
+            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('Document uploaded') ? 'text-green-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-gray-500'}`}>
               {uploadMsg}
             </p>
           )}
         </div>
 
-        {/* Audit logs — 2/5 width */}
-        <div className="col-span-2 bg-white rounded-xl border border-gray-100 p-5">
+        {/* Audit logs - 2/5 width */}
+        <div className="col-span-5 lg:col-span-2 bg-white rounded-xl border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-gray-700">Recent Audit Logs</p>
             <Link href="/audit" className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">

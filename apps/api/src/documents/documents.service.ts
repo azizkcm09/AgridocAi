@@ -21,7 +21,7 @@ export class DocumentsService {
   // Invalidate cached stats for a specific user
   // Called after any action that changes document counts or confidence
   private async clearStatsCache(userId: string) {
-    await this.cache.del(`stats:${userId}`);
+    await this.cache.del(`stats:${userId}`, `analytics:${userId}`);
   }
 
   // --- CREATE: Save metadata after MinIO upload ---
@@ -81,6 +81,137 @@ export class DocumentsService {
     ]);
 
     return { data, total };
+  }
+
+  // --- READ: Analytics for the enhanced dashboard ---
+  async getAnalytics(userId: string) {
+    const cacheKey = `analytics:${userId}`;
+    const cached = await this.cache.get<any>(cacheKey);
+    if (cached) return cached;
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(now.getDate() - now.getDay());
+    thisWeekStart.setHours(0, 0, 0, 0);
+    const lastWeekStart = new Date(thisWeekStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      docsPerDay,
+      docsByType,
+      docsByStatus,
+      confidenceRows,
+      totalCount,
+      validatedCount,
+      rejectedCount,
+      thisWeekCount,
+      lastWeekCount,
+      avgProcessingTime,
+    ] = await Promise.all([
+      // Documents per day (last 30 days)
+      this.prisma.$queryRaw<{ date: string; count: bigint }[]>`
+        SELECT DATE("createdAt") as date, COUNT(*)::bigint as count
+        FROM "Document"
+        WHERE "userId" = ${userId} AND "deletedAt" IS NULL
+          AND "createdAt" >= ${thirtyDaysAgo}
+        GROUP BY DATE("createdAt")
+        ORDER BY date ASC
+      `,
+      // Documents by type
+      this.prisma.$queryRaw<{ type: string; count: bigint }[]>`
+        SELECT "type", COUNT(*)::bigint as count
+        FROM "Document"
+        WHERE "userId" = ${userId} AND "deletedAt" IS NULL
+        GROUP BY "type"
+      `,
+      // Documents by status
+      this.prisma.$queryRaw<{ status: string; count: bigint }[]>`
+        SELECT "status", COUNT(*)::bigint as count
+        FROM "Document"
+        WHERE "userId" = ${userId} AND "deletedAt" IS NULL
+        GROUP BY "status"
+      `,
+      // Confidence distribution
+      this.prisma.$queryRaw<{ bucket: string; count: bigint }[]>`
+        SELECT
+          CASE
+            WHEN ed."confidence" < 20 THEN '0-20'
+            WHEN ed."confidence" < 40 THEN '20-40'
+            WHEN ed."confidence" < 60 THEN '40-60'
+            WHEN ed."confidence" < 80 THEN '60-80'
+            ELSE '80-100'
+          END as bucket,
+          COUNT(*)::bigint as count
+        FROM "ExtractedData" ed
+        JOIN "Document" d ON d."id" = ed."documentId"
+        WHERE d."userId" = ${userId} AND d."deletedAt" IS NULL
+        GROUP BY bucket
+        ORDER BY bucket ASC
+      `,
+      // KPI: total
+      this.prisma.document.count({ where: { userId, deletedAt: null } }),
+      // KPI: validated
+      this.prisma.document.count({ where: { userId, deletedAt: null, status: 'VALIDATED' } }),
+      // KPI: rejected
+      this.prisma.document.count({ where: { userId, deletedAt: null, status: 'REJECTED' } }),
+      // KPI: this week count
+      this.prisma.document.count({ where: { userId, deletedAt: null, createdAt: { gte: thisWeekStart } } }),
+      // KPI: last week count
+      this.prisma.document.count({
+        where: {
+          userId,
+          deletedAt: null,
+          createdAt: { gte: lastWeekStart, lt: thisWeekStart },
+        },
+      }),
+      // KPI: avg processing time (seconds between PENDING creation and REVIEW_REQUIRED/VALIDATED)
+      this.prisma.$queryRaw<{ avg_seconds: number | null }[]>`
+        SELECT AVG(EXTRACT(EPOCH FROM ("updatedAt" - "createdAt")))::float as avg_seconds
+        FROM "Document"
+        WHERE "userId" = ${userId} AND "deletedAt" IS NULL
+          AND "status" IN ('REVIEW_REQUIRED', 'VALIDATED', 'REJECTED')
+      `,
+    ]);
+
+    // Serialize bigints and build result
+    const serializeRows = (rows: { [key: string]: any }[]) =>
+      rows.map((r) => {
+        const obj: any = {};
+        for (const [k, v] of Object.entries(r)) {
+          obj[k] = typeof v === 'bigint' ? Number(v) : v instanceof Date ? v.toISOString().split('T')[0] : v;
+        }
+        return obj;
+      });
+
+    const pendingReview = docsByStatus.find((r) => r.status === 'REVIEW_REQUIRED');
+    const avgConfidenceData = await this.prisma.extractedData.findMany({
+      where: { document: { userId, deletedAt: null } },
+      select: { confidence: true },
+    });
+    const avgConfidence =
+      avgConfidenceData.length > 0
+        ? Math.round(avgConfidenceData.reduce((sum, d) => sum + d.confidence, 0) / avgConfidenceData.length)
+        : 0;
+
+    const result = {
+      docsPerDay: serializeRows(docsPerDay),
+      docsByType: serializeRows(docsByType),
+      docsByStatus: serializeRows(docsByStatus),
+      confidenceDistribution: serializeRows(confidenceRows),
+      kpis: {
+        total: totalCount,
+        pendingReview: pendingReview ? Number(pendingReview.count) : 0,
+        avgConfidence,
+        validationRate: totalCount > 0 ? Math.round((validatedCount / totalCount) * 100) : 0,
+        rejectionRate: totalCount > 0 ? Math.round((rejectedCount / totalCount) * 100) : 0,
+        avgProcessingTimeSec: avgProcessingTime[0]?.avg_seconds ? Math.round(avgProcessingTime[0].avg_seconds) : 0,
+        thisWeekCount,
+        lastWeekCount,
+      },
+    };
+
+    await this.cache.set(cacheKey, result, 60);
+    return result;
   }
 
   // --- READ: Aggregate stats for the dashboard ---

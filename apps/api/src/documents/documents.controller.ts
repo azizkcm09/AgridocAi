@@ -54,7 +54,14 @@ export class DocumentsController {
     );
   }
 
-  // --- 3. READ: Dashboard stats (MUST be before :id route or NestJS matches "stats" as an id)
+  // --- 3a. READ: Analytics for enhanced dashboard (MUST be before :id route)
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get analytics: charts data + KPIs with week-over-week changes' })
+  getAnalytics(@Req() req: any) {
+    return this.documentsService.getAnalytics(req.user.userId);
+  }
+
+  // --- 3b. READ: Dashboard stats (MUST be before :id route or NestJS matches "stats" as an id)
   @Get('stats')
   @ApiOperation({ summary: 'Get dashboard stats: total, pendingReview, avgConfidence' })
   getStats(@Req() req: any) {
