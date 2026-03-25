@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { BadRequestException } from '@nestjs/common';
-import { getPayloadSchema } from './dto/extraction.schema';
+import { getPayloadSchema, REQUIRED_FIELDS } from './dto/extraction.schema';
 import type { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq/dist/decorators/inject-queue.decorator';
 import { CacheService } from '../cache/cache.service';
@@ -323,6 +324,9 @@ export class DocumentsService {
   }
 
   // --- UPDATE: Human-in-the-Loop Data Correction ---
+  // Validation rule: every required field must be either filled (non-null/non-empty)
+  // OR explicitly marked as N/A in fieldOverrides. This allows documents with
+  // genuinely missing fields (e.g. certificates without expiry dates) to pass validation.
   async updateExtractedData(id: string, userId: string, newData: any) {
     const document = await this.prisma.document.findFirst({
       where: { id, userId, deletedAt: null },
@@ -338,6 +342,27 @@ export class DocumentsService {
       throw new BadRequestException({
         message: 'Invalid data format',
         errors: validation.error.format(),
+      });
+    }
+
+    // Check required fields are either filled or marked N/A
+    const requiredFields = REQUIRED_FIELDS[document.type] ?? [];
+    const overrides = (document.extractedData?.fieldOverrides as Record<string, any>) ?? {};
+    const unresolved: string[] = [];
+
+    for (const field of requiredFields) {
+      const value = newData[field];
+      const isFilled = value !== null && value !== undefined && value !== '';
+      const isOverridden = !!overrides[field];
+      if (!isFilled && !isOverridden) {
+        unresolved.push(field);
+      }
+    }
+
+    if (unresolved.length > 0) {
+      throw new BadRequestException({
+        message: 'Some required fields are missing. Fill them in or mark as N/A.',
+        unresolvedFields: unresolved,
       });
     }
 
@@ -368,6 +393,78 @@ export class DocumentsService {
 
       return updatedData;
     });
+  }
+
+  // --- UPDATE: Mark a field as N/A (not applicable) ---
+  async setFieldOverride(
+    id: string,
+    userId: string,
+    fieldKey: string,
+    reason: string,
+  ) {
+    const document = await this.prisma.document.findFirst({
+      where: { id, userId, deletedAt: null },
+      include: { extractedData: true },
+    });
+
+    if (!document) throw new NotFoundException('Document not found');
+    if (!document.extractedData) {
+      throw new BadRequestException('No extracted data to override');
+    }
+
+    const existing = (document.extractedData.fieldOverrides as Record<string, any>) ?? {};
+    const updated = {
+      ...existing,
+      [fieldKey]: {
+        reason,
+        markedBy: userId,
+        markedAt: new Date().toISOString(),
+      },
+    };
+
+    const result = await this.prisma.extractedData.update({
+      where: { documentId: id },
+      data: { fieldOverrides: updated },
+    });
+
+    await this.audit.logAction({
+      userId,
+      documentId: id,
+      action: 'UPDATE_FIELD',
+      description: `Marked "${fieldKey}" as N/A: ${reason}`,
+    });
+
+    return result;
+  }
+
+  // --- UPDATE: Remove an N/A override (user wants to fill the field instead) ---
+  async removeFieldOverride(id: string, userId: string, fieldKey: string) {
+    const document = await this.prisma.document.findFirst({
+      where: { id, userId, deletedAt: null },
+      include: { extractedData: true },
+    });
+
+    if (!document) throw new NotFoundException('Document not found');
+    if (!document.extractedData) {
+      throw new BadRequestException('No extracted data');
+    }
+
+    const existing = (document.extractedData.fieldOverrides as Record<string, any>) ?? {};
+    const { [fieldKey]: _removed, ...remaining } = existing;
+
+    const result = await this.prisma.extractedData.update({
+      where: { documentId: id },
+      data: { fieldOverrides: Object.keys(remaining).length > 0 ? remaining : Prisma.JsonNull },
+    });
+
+    await this.audit.logAction({
+      userId,
+      documentId: id,
+      action: 'UPDATE_FIELD',
+      description: `Removed N/A override for "${fieldKey}"`,
+    });
+
+    return result;
   }
     // =============================================
   // BATCH OPERATIONS

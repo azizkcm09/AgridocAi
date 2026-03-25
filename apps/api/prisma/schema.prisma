@@ -81,11 +81,15 @@ model Document {
 
 model ExtractedData {
   id         String   @id @default(uuid())
-  
+
   // Dynamic JSON payload for varying document types
-  payload    Json     
-  
+  payload    Json
+
   confidence Float    @default(0.0) // Overall AI confidence score
+
+  // Fields explicitly marked N/A by the reviewer
+  // Format: { "expiryDate": { "reason": "Certificate has no expiry", "markedBy": "userId", "markedAt": "ISO" } }
+  fieldOverrides Json?
 
   // Relations
   documentId String   @unique

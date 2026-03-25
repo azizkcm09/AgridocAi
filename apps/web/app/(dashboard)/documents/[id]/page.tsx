@@ -11,6 +11,12 @@ import { DetailPanelSkeleton } from '@/components/Skeleton';
 
 // ── Types ──────────────────────────────────────────────
 
+type FieldOverride = {
+  reason: string;
+  markedBy: string;
+  markedAt: string;
+};
+
 type DocumentDetail = {
   id: string;
   originalName: string;
@@ -23,6 +29,7 @@ type DocumentDetail = {
   extractedData: {
     payload: Record<string, any>;
     confidence: number;
+    fieldOverrides: Record<string, FieldOverride> | null;
   } | null;
   auditLogs: {
     id: string;
@@ -110,6 +117,11 @@ export default function DocumentDetailPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [exporting, setExporting] = useState(false);
 
+  // N/A override state
+  const [naFieldKey, setNaFieldKey] = useState<string | null>(null);
+  const [naReason, setNaReason] = useState('');
+  const [naLoading, setNaLoading] = useState(false);
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   // Fetch document + presigned preview URL
@@ -152,10 +164,50 @@ export default function DocumentDetailPage() {
       setSaveMsg(null);
       await loadDocument();
     } catch (err: any) {
-      const detail = err.response?.data?.message;
-      addToast(typeof detail === 'string' ? detail : 'Validation failed. Check your inputs.', 'error');
+      const data = err.response?.data;
+      if (data?.unresolvedFields) {
+        const names = data.unresolvedFields.join(', ');
+        addToast(`Missing fields: ${names}. Fill them or mark as N/A.`, 'error');
+      } else {
+        const detail = data?.message;
+        addToast(typeof detail === 'string' ? detail : 'Validation failed. Check your inputs.', 'error');
+      }
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Mark field as N/A
+  async function handleMarkNA() {
+    if (!naFieldKey || !naReason.trim()) return;
+    setNaLoading(true);
+    try {
+      await api.patch(`/documents/${id}/field-override`, {
+        fieldKey: naFieldKey,
+        reason: naReason.trim(),
+      });
+      addToast(`"${naFieldKey}" marked as N/A.`, 'success');
+      setNaFieldKey(null);
+      setNaReason('');
+      await loadDocument();
+    } catch {
+      addToast('Failed to mark field as N/A.', 'error');
+    } finally {
+      setNaLoading(false);
+    }
+  }
+
+  // Remove N/A override
+  async function handleRemoveNA(fieldKey: string) {
+    setNaLoading(true);
+    try {
+      await api.delete(`/documents/${id}/field-override/${fieldKey}`);
+      addToast(`N/A removed from "${fieldKey}".`, 'success');
+      await loadDocument();
+    } catch {
+      addToast('Failed to remove N/A override.', 'error');
+    } finally {
+      setNaLoading(false);
     }
   }
 
@@ -229,11 +281,21 @@ export default function DocumentDetailPage() {
 
   const confidence = doc.extractedData?.confidence ?? 0;
   const payload    = doc.extractedData?.payload ?? {};
+  const overrides  = doc.extractedData?.fieldOverrides ?? {};
   const canEdit    = doc.status === 'REVIEW_REQUIRED';
   const hasData    = Object.keys(payload).length > 0;
   const fields     = FIELD_DEFS[doc.type] ?? FIELD_DEFS.UNKNOWN;
   const isPdf      = doc.mimeType === 'application/pdf';
   const isImage    = doc.mimeType.startsWith('image/');
+
+  // Compute completeness: how many fields are resolved (filled or N/A)
+  const totalFields = fields.length;
+  const resolvedFields = fields.filter((f) => {
+    const val = payload[f.key];
+    const isFilled = val !== null && val !== undefined && val !== '';
+    const isNA = !!overrides[f.key];
+    return isFilled || isNA;
+  }).length;
 
   return (
     <div className="space-y-4">
@@ -331,8 +393,24 @@ export default function DocumentDetailPage() {
               <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Extracted Data</h2>
               <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-medium">{doc.type}</span>
             </div>
+
+            {/* Completeness bar */}
+            {hasData && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${resolvedFields === totalFields ? 'bg-green-500' : 'bg-amber-500'}`}
+                    style={{ width: `${Math.round((resolvedFields / totalFields) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+                  {resolvedFields}/{totalFields} fields
+                </span>
+              </div>
+            )}
+
             {canEdit && (
-              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">Review and correct the fields below, then validate.</p>
+              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1.5">Review fields below. Mark missing ones as N/A, then validate.</p>
             )}
             {!canEdit && doc.status === 'VALIDATED' && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">This document has been validated.</p>
@@ -346,28 +424,74 @@ export default function DocumentDetailPage() {
             <div className="flex-1 px-5 py-4 space-y-3 overflow-y-auto">
 
               {/* Dynamic fields based on document type */}
-              {hasData && fields.map((f) => (
-                <Field key={f.key} label={f.label}>
-                  {f.type === 'textarea' ? (
-                    <textarea
-                      {...register(f.key, f.required ? { required: 'Required' } : {})}
-                      disabled={!canEdit}
-                      className="field-input resize-none h-16"
-                      placeholder={f.placeholder}
-                    />
-                  ) : (
-                    <input
-                      {...register(f.key, f.required ? { required: 'Required' } : {})}
-                      type={f.type === 'number' ? 'number' : 'text'}
-                      step={f.type === 'number' ? '0.01' : undefined}
-                      disabled={!canEdit}
-                      className="field-input"
-                      placeholder={f.placeholder}
-                    />
-                  )}
-                  {errors[f.key] && <FieldError msg={String(errors[f.key]?.message)} />}
-                </Field>
-              ))}
+              {hasData && fields.map((f) => {
+                const override = overrides[f.key];
+                const isNA = !!override;
+                const value = payload[f.key];
+                const isEmpty = value === null || value === undefined || value === '';
+
+                return (
+                  <div key={f.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-gray-400 tracking-wide flex items-center gap-1.5">
+                        {f.label.toUpperCase()}
+                        {f.required && !isNA && isEmpty && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Required — fill or mark N/A" />
+                        )}
+                      </label>
+                      {canEdit && !isNA && (
+                        <button
+                          type="button"
+                          onClick={() => { setNaFieldKey(f.key); setNaReason(''); }}
+                          className="text-[10px] text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 font-medium transition-colors"
+                        >
+                          Mark N/A
+                        </button>
+                      )}
+                    </div>
+
+                    {isNA ? (
+                      /* Field is marked as N/A */
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">N/A</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-1 truncate">{override.reason}</span>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNA(f.key)}
+                            disabled={naLoading}
+                            className="text-xs text-red-400 hover:text-red-600 font-medium shrink-0"
+                          >
+                            Undo
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      /* Normal editable field */
+                      <>
+                        {f.type === 'textarea' ? (
+                          <textarea
+                            {...register(f.key)}
+                            disabled={!canEdit}
+                            className="field-input resize-none h-16"
+                            placeholder={f.placeholder}
+                          />
+                        ) : (
+                          <input
+                            {...register(f.key)}
+                            type={f.type === 'number' ? 'number' : 'text'}
+                            step={f.type === 'number' ? '0.01' : undefined}
+                            disabled={!canEdit}
+                            className="field-input"
+                            placeholder={f.placeholder}
+                          />
+                        )}
+                        {errors[f.key] && <FieldError msg={String(errors[f.key]?.message)} />}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
 
               {/* Line items (invoice only) */}
               {doc.type === 'INVOICE' && Array.isArray(payload.lineItems) && payload.lineItems.length > 0 && (
@@ -502,6 +626,39 @@ export default function DocumentDetailPage() {
         </div>
       )}
 
+      {/* ── N/A Reason Modal ── */}
+      <Modal
+        open={naFieldKey !== null}
+        onClose={() => { setNaFieldKey(null); setNaReason(''); }}
+        title="Mark Field as N/A"
+      >
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+          Why is <span className="font-medium text-gray-800 dark:text-gray-200">{naFieldKey}</span> not available on this document?
+        </p>
+        <p className="text-xs text-gray-400 mb-3">This will be recorded in the audit trail for compliance.</p>
+        <textarea
+          value={naReason}
+          onChange={(e) => setNaReason(e.target.value)}
+          placeholder="e.g. Certificate does not include an expiry date"
+          className="field-input resize-none h-20 mb-4"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setNaFieldKey(null); setNaReason(''); }}
+            className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleMarkNA}
+            disabled={naLoading || !naReason.trim()}
+            className="flex-1 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+          >
+            {naLoading ? 'Saving...' : 'Confirm N/A'}
+          </button>
+        </div>
+      </Modal>
+
       {/* Reject confirmation modal */}
       <Modal open={rejectOpen} onClose={() => { setRejectOpen(false); setRejectReason(''); }} title="Reject Document">
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
@@ -534,15 +691,6 @@ export default function DocumentDetailPage() {
 }
 
 // ── Helper Components ──────────────────────────────────
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-gray-400 tracking-wide mb-1 block">{label.toUpperCase()}</label>
-      {children}
-    </div>
-  );
-}
 
 function FieldError({ msg }: { msg: string }) {
   return <p className="mt-1 text-xs text-red-500">{msg}</p>;

@@ -192,4 +192,26 @@ export class DocumentsController {
   ) {
     return this.documentsService.updateExtractedData(id, req.user.userId, updateDataDto);
   }
+
+  // --- 10. Mark a field as N/A ---
+  @Patch(':id/field-override')
+  @ApiOperation({ summary: 'Mark a field as N/A (not applicable on this document)' })
+  setFieldOverride(
+    @Param('id') id: string,
+    @Body() body: { fieldKey: string; reason: string },
+    @Req() req: any,
+  ) {
+    return this.documentsService.setFieldOverride(id, req.user.userId, body.fieldKey, body.reason);
+  }
+
+  // --- 11. Remove an N/A override ---
+  @Delete(':id/field-override/:fieldKey')
+  @ApiOperation({ summary: 'Remove N/A override from a field' })
+  removeFieldOverride(
+    @Param('id') id: string,
+    @Param('fieldKey') fieldKey: string,
+    @Req() req: any,
+  ) {
+    return this.documentsService.removeFieldOverride(id, req.user.userId, fieldKey);
+  }
 }
