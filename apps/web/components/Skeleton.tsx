@@ -2,11 +2,12 @@
 
 type SkeletonProps = {
   className?: string;
+  style?: React.CSSProperties;
 };
 
-export function Skeleton({ className = '' }: SkeletonProps) {
+export function Skeleton({ className = '', style }: SkeletonProps) {
   return (
-    <div className={`bg-gray-200 dark:bg-gray-700 rounded animate-pulse ${className}`} />
+    <div className={`bg-gray-200 dark:bg-gray-700 rounded animate-pulse ${className}`} style={style} />
   );
 }
 

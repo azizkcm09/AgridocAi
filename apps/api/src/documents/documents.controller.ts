@@ -19,6 +19,7 @@ import { DocumentsService } from './documents.service';
 import { PdfExportService } from './pdf-export.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { ExtractionCallbackDto } from './dto/extraction-callback.dto';
+import { BatchOperationDto } from './dto/batch-operation.dto';
 
 @ApiTags('Documents')
 @ApiBearerAuth()
@@ -72,6 +73,53 @@ export class DocumentsController {
   @ApiOperation({ summary: 'Get dashboard stats: total, pendingReview, avgConfidence' })
   getStats(@Req() req: any) {
     return this.documentsService.getStats(req.user.userId);
+  }
+
+  // =============================================
+  // BATCH OPERATIONS — 
+  // =============================================
+  
+  
+  @Post('batch/validate')
+  @ApiOperation({ summary: 'Batch validate multiple documents' })
+  batchValidate(@Body() dto: BatchOperationDto, @Req() req: any) {
+    return this.documentsService.batchValidate(req.user.userId, dto.documentIds);
+  }
+
+  
+  @Post('batch/reject')
+  @ApiOperation({ summary: 'Batch reject multiple documents' })
+  batchReject(@Body() dto: BatchOperationDto, @Req() req: any) {
+    return this.documentsService.batchReject(req.user.userId, dto.documentIds, dto.reason);
+  }
+
+  
+  @Post('batch/delete')
+  @ApiOperation({ summary: 'Batch soft-delete multiple documents' })
+  batchDelete(@Body() dto: BatchOperationDto, @Req() req: any) {
+    return this.documentsService.batchDelete(req.user.userId, dto.documentIds);
+  }
+
+  
+  @Post('batch/export')
+  @ApiOperation({ summary: 'Batch export validated documents as combined PDF' })
+  async batchExport(@Body() dto: BatchOperationDto, @Req() req: any, @Res() res: Response) {
+    const { buffer, count } = await this.documentsService.batchExport(req.user.userId, dto.documentIds);
+
+    if (!buffer) {
+      // No validated documents found — return JSON error instead of empty PDF
+  
+      res.status(400).json({ message: 'No validated documents to export' });
+      return;
+    }
+
+    // Set response headers for a PDF download
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="agridoc-batch-export-${count}-docs.pdf"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer); // Send the binary PDF buffer
   }
 
   // --- 4. CALLBACK: Receive AI extraction results (service-to-service) ---

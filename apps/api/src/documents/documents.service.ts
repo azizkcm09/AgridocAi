@@ -369,7 +369,243 @@ export class DocumentsService {
       return updatedData;
     });
   }
-    // --- CALLBACK: Receive extraction results from the AI service ---
+    // =============================================
+  // BATCH OPERATIONS
+  // =============================================
+ 
+
+  
+  async batchValidate(userId: string, documentIds: string[]) {
+    // Step 1: Fetch all documents that belong to this user AND are not deleted
+    //         We use `in` to get them all in a single SQL query
+    const documents = await this.prisma.document.findMany({
+      where: {
+        id: { in: documentIds },   // SQL: WHERE id IN ('uuid1', 'uuid2', ...)
+        userId,                      // Must belong to this user (ownership check)
+        deletedAt: null,             // Exclude soft-deleted documents
+      },
+    });
+
+    // Step 2: Filter to only REVIEW_REQUIRED docs — others are skipped silently
+    const eligible = documents.filter((d) => d.status === 'REVIEW_REQUIRED');
+
+    if (eligible.length === 0) {
+      return { validated: 0, skipped: documentIds.length };
+    }
+
+    // Step 3: Wrap all writes in a transaction
+    await this.prisma.$transaction(async (tx) => {
+      // updateMany is more efficient than looping update() for each doc
+      // It generates a single SQL UPDATE ... WHERE id IN (...) statement
+      await tx.document.updateMany({
+        where: { id: { in: eligible.map((d) => d.id) } },
+        data: { status: 'VALIDATED' },
+      });
+
+      // But we still need individual audit logs — each doc gets its own entry
+      // so the audit trail shows exactly which documents were validated
+      for (const doc of eligible) {
+        await this.audit.logAction({
+          userId,
+          documentId: doc.id,
+          action: 'VALIDATE_DOC',
+          description: `Batch validated: ${doc.originalName}`,
+        });
+      }
+    });
+
+    // Step 4: Clear cache once — not inside the loop
+    await this.clearStatsCache(userId);
+
+    return { validated: eligible.length, skipped: documentIds.length - eligible.length };
+  }
+
+  
+  async batchReject(userId: string, documentIds: string[], reason?: string) {
+    const documents = await this.prisma.document.findMany({
+      where: { id: { in: documentIds }, userId, deletedAt: null },
+    });
+
+    const eligible = documents.filter((d) => d.status === 'REVIEW_REQUIRED');
+
+    if (eligible.length === 0) {
+      return { rejected: 0, skipped: documentIds.length };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.document.updateMany({
+        where: { id: { in: eligible.map((d) => d.id) } },
+        data: { status: 'REJECTED' },
+      });
+
+      for (const doc of eligible) {
+        await this.audit.logAction({
+          userId,
+          documentId: doc.id,
+          action: 'VALIDATE_DOC', // Same audit action as single reject
+          description: reason
+            ? `Batch rejected: ${reason}`
+            : `Batch rejected: ${doc.originalName}`,
+        });
+      }
+    });
+
+    await this.clearStatsCache(userId);
+
+    return { rejected: eligible.length, skipped: documentIds.length - eligible.length };
+  }
+
+  
+  async batchDelete(userId: string, documentIds: string[]) {
+    // Find all non-deleted docs belonging to this user
+    const documents = await this.prisma.document.findMany({
+      where: { id: { in: documentIds }, userId, deletedAt: null },
+    });
+
+    if (documents.length === 0) {
+      return { deleted: 0 };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Set deletedAt on all matched documents in one SQL statement
+      await tx.document.updateMany({
+        where: { id: { in: documents.map((d) => d.id) } },
+        data: { deletedAt: new Date() },
+      });
+
+      for (const doc of documents) {
+        await this.audit.logAction({
+          userId,
+          documentId: doc.id,
+          action: 'DELETE_DOC',
+          description: `Batch deleted: ${doc.originalName}`,
+        });
+      }
+    });
+
+    await this.clearStatsCache(userId);
+
+    return { deleted: documents.length };
+  }
+
+  
+  async batchExport(userId: string, documentIds: string[]) {
+    // Fetch all validated, non-deleted docs with their extracted data
+    const documents = await this.prisma.document.findMany({
+      where: {
+        id: { in: documentIds },
+        userId,
+        deletedAt: null,
+        status: 'VALIDATED',
+      },
+      include: {
+        extractedData: true,
+        user: { select: { email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (documents.length === 0) {
+      return { buffer: null, count: 0 };
+    }
+
+    // We import pdfkit here to build one combined PDF
+    const PDFDocument = require('pdfkit');
+    const pdf = new PDFDocument({ margin: 50 });
+    const chunks: Buffer[] = [];
+
+    const result: Buffer = await new Promise((resolve, reject) => {
+      pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
+      pdf.on('end', () => resolve(Buffer.concat(chunks)));
+      pdf.on('error', reject);
+
+      // Cover page
+      pdf
+        .fontSize(24).font('Helvetica-Bold').text('AgriDoc AI', { align: 'center' })
+        .fontSize(14).font('Helvetica').fillColor('#666666')
+        .text('Batch Export Report', { align: 'center' })
+        .moveDown(0.5)
+        .fontSize(10).text(`${documents.length} document(s) · Generated ${new Date().toLocaleDateString('en-GB')}`, { align: 'center' })
+        .moveDown(2);
+
+      // Table of contents
+      pdf.fillColor('#000000').fontSize(14).font('Helvetica-Bold').text('Documents Included:');
+      pdf.moveDown(0.5);
+      documents.forEach((doc, i) => {
+        pdf.fontSize(10).font('Helvetica').fillColor('#374151')
+          .text(`${i + 1}. ${doc.originalName} (${doc.type})`);
+      });
+
+      // One section per document (each starts on a new page)
+      for (const doc of documents) {
+        pdf.addPage();
+
+        // Document header
+        pdf.fontSize(16).font('Helvetica-Bold').fillColor('#000000').text(doc.originalName);
+        pdf.fontSize(10).font('Helvetica').fillColor('#666666')
+          .text(`Type: ${doc.type} · Uploaded: ${new Date(doc.createdAt).toLocaleDateString('en-GB')}`);
+        pdf.moveDown(1);
+
+        // Confidence
+        const confidence = doc.extractedData?.confidence ?? 0;
+        pdf.fontSize(10).font('Helvetica-Bold').fillColor('#374151')
+          .text(`Confidence: ${confidence}%`);
+        pdf.moveDown(0.5);
+
+        // Extracted data fields
+        const payload = (doc.extractedData?.payload ?? {}) as Record<string, unknown>;
+        for (const [key, value] of Object.entries(payload)) {
+          if (pdf.y > pdf.page.height - 100) pdf.addPage();
+
+          const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim();
+
+          if (Array.isArray(value)) {
+            pdf.fontSize(10).font('Helvetica-Bold').fillColor('#374151').text(`${label}:`);
+            for (const item of value) {
+              pdf.fontSize(9).font('Helvetica').fillColor('#000000');
+              if (typeof item === 'object' && item !== null) {
+                const parts = Object.entries(item as Record<string, unknown>).map(([k, v]) => `${k}: ${v}`).join(' | ');
+                pdf.text(`  - ${parts}`);
+              } else {
+                pdf.text(`  - ${item}`);
+              }
+            }
+          } else {
+            pdf.fontSize(10).font('Helvetica-Bold').fillColor('#374151').text(`${label}: `, { continued: true });
+            pdf.font('Helvetica').fillColor('#000000').text(String(value ?? ''));
+          }
+        }
+      }
+
+      // Footer on all pages
+      const pageCount = pdf.bufferedPageRange();
+      for (let i = 0; i < pageCount.count; i++) {
+        pdf.switchToPage(i);
+        const footerY = pdf.page.height - 50;
+        pdf.strokeColor('#e5e7eb').lineWidth(0.5)
+          .moveTo(50, footerY).lineTo(pdf.page.width - 50, footerY).stroke();
+        pdf.fontSize(8).font('Helvetica').fillColor('#9ca3af')
+          .text(`Generated by AgriDoc AI · ${new Date().toLocaleString('en-GB')}`, 50, footerY + 10, { width: pdf.page.width - 150, align: 'left' })
+          .text(`Page ${i + 1} of ${pageCount.count}`, 50, footerY + 10, { width: pdf.page.width - 100, align: 'right' });
+      }
+
+      pdf.end();
+
+      // Log export for each document (fire-and-forget)
+      for (const doc of documents) {
+        this.audit.logAction({
+          userId,
+          documentId: doc.id,
+          action: 'EXPORT',
+          description: `Batch exported: ${doc.originalName}`,
+        }).catch(() => {});
+      }
+    });
+
+    return { buffer: result, count: documents.length };
+  }
+
+  // --- CALLBACK: Receive extraction results from the AI service ---
   async handleExtractionCallback(
     documentId: string,
     dto: { payload: Record<string, any>; confidence: number; rawText?: string },
@@ -382,8 +618,6 @@ export class DocumentsService {
     if (!document) throw new NotFoundException('Document not found');
 
     // 2. Save extracted data + update status in one transaction
-    //    Why a transaction? If status updates but data save fails,
-    //    you'd have a doc marked "ready for review" with no data to review.
     await this.prisma.$transaction(async (tx) => {
       await tx.extractedData.upsert({
         where: { documentId },

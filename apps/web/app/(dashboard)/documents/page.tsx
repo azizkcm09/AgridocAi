@@ -55,6 +55,12 @@ export default function DocumentsPage() {
   const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // ── Batch selection state ──
+  //   - Cleaner add/delete API
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Track if a batch operation is in progress (disables buttons to prevent double-clicks)
+  const [batchLoading, setBatchLoading] = useState(false);
+
   // SWR: fetch documents with caching per filter combination
   const swrKey = buildKey(page, search, typeFilter, statusFilter);
   const { data, isLoading, mutate } = useSWR<{ data: Document[]; total: number }>(swrKey, fetcher);
@@ -119,6 +125,102 @@ export default function DocumentsPage() {
     }
   }
 
+  // ── Selection helpers ──
+
+  
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);       // Clone the Set (new reference)
+      if (next.has(id)) next.delete(id); // Toggle: remove if present
+      else next.add(id);                 // Toggle: add if absent
+      return next;
+    });
+  }
+
+  
+  const allSelected = documents.length > 0 && documents.every((d) => selectedIds.has(d.id));
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelectedIds(new Set()); // Deselect everything
+    } else {
+      setSelectedIds(new Set(documents.map((d) => d.id))); // Select all on page
+    }
+  }
+
+  // ── Batch action handlers ──
+  
+  async function handleBatchValidate() {
+    setBatchLoading(true);
+    try {
+      const ids = Array.from(selectedIds);  // Convert Set to array for JSON
+      const res = await api.post('/documents/batch/validate', { documentIds: ids });
+      setSelectedIds(new Set());
+      mutate();
+      addToast(`${res.data.validated} document(s) validated.`, 'success');
+    } catch {
+      addToast('Batch validate failed.', 'error');
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
+  async function handleBatchReject() {
+    setBatchLoading(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const res = await api.post('/documents/batch/reject', { documentIds: ids });
+      setSelectedIds(new Set());
+      mutate();
+      addToast(`${res.data.rejected} document(s) rejected.`, 'success');
+    } catch {
+      addToast('Batch reject failed.', 'error');
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
+  async function handleBatchDelete() {
+    setBatchLoading(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const res = await api.post('/documents/batch/delete', { documentIds: ids });
+      setSelectedIds(new Set());
+      mutate();
+      addToast(`${res.data.deleted} document(s) deleted.`, 'success');
+    } catch {
+      addToast('Batch delete failed.', 'error');
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
+  /**
+   * handleBatchExport — downloads a combined PDF.
+   */
+  async function handleBatchExport() {
+    setBatchLoading(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const res = await api.post('/documents/batch/export', { documentIds: ids }, {
+        responseType: 'blob',  // Tell Axios: "this response is binary, not JSON"
+      });
+      // Create a temporary object URL from the PDF blob
+      const url = window.URL.createObjectURL(res.data);
+      const a = document.createElement('a');   // Create invisible <a> tag
+      a.href = url;
+      a.download = `agridoc-batch-export.pdf`;  // Suggested filename
+      a.click();                                // Trigger the download
+      window.URL.revokeObjectURL(url);          // Free memory
+      setSelectedIds(new Set());
+      addToast('Batch PDF exported.', 'success');
+    } catch {
+      addToast('Batch export failed. Make sure selected documents are validated.', 'error');
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-GB', {
       year: 'numeric', month: '2-digit', day: '2-digit',
@@ -180,11 +282,81 @@ export default function DocumentsPage() {
         </select>
       </div>
 
+      {/* -- BATCH TOOLBAR --
+          Only visible when at least 1 document is selected.
+          Shows: count label, action buttons, clear button.
+          All buttons are disabled while a batch operation is in progress
+          (batchLoading) to prevent double-clicks sending duplicate requests.
+      */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2.5">
+          {/* Count label */}
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+            {selectedIds.size} selected
+          </span>
+
+          {/* Divider line between count and buttons */}
+          <div className="h-5 w-px bg-blue-200 dark:bg-blue-700" />
+
+          {/* Validate All — only makes sense if at least some are REVIEW_REQUIRED */}
+          <button
+            onClick={handleBatchValidate}
+            disabled={batchLoading}
+            className="text-sm font-medium text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 disabled:opacity-50 transition-colors"
+          >
+            Validate All
+          </button>
+          <button
+            onClick={handleBatchReject}
+            disabled={batchLoading}
+            className="text-sm font-medium text-yellow-700 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 disabled:opacity-50 transition-colors"
+          >
+            Reject All
+          </button>
+          <button
+            onClick={handleBatchExport}
+            disabled={batchLoading}
+            className="text-sm font-medium text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+          >
+            Export All
+          </button>
+          <button
+            onClick={handleBatchDelete}
+            disabled={batchLoading}
+            className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50 transition-colors"
+          >
+            Delete All
+          </button>
+
+          {/* Spacer pushes the clear button to the right */}
+          <div className="flex-1" />
+
+          {/* Clear selection — resets the Set to empty */}
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* -- TABLE -- */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-visible">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-800 text-left">
+              {/* Checkbox column header — "select all" toggle for current page.
+                  The "checked" state uses the allSelected variable we computed above.
+                  onChange fires toggleAll() which either selects all or deselects all. */}
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
               <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Document Name</th>
               <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Type</th>
               <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Upload Date</th>
@@ -194,10 +366,10 @@ export default function DocumentsPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)
+              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
             ) : documents.length === 0 ? (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <EmptyState
                     icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
                     title="No documents yet"
@@ -213,6 +385,19 @@ export default function DocumentsPage() {
                   onClick={() => router.push(`/documents/${doc.id}`)}
                   className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
                 >
+                  {/* Per-row checkbox.
+                      e.stopPropagation() prevents the row's onClick from firing
+                      when the user clicks the checkbox (otherwise clicking the
+                      checkbox would also navigate to the document detail page).
+                      selectedIds.has(doc.id) checks if this doc is in the Set. */}
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(doc.id)}
+                      onChange={() => toggleOne(doc.id)}
+                      className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
                   <td className="px-4 py-3 text-blue-600 dark:text-blue-400 font-medium max-w-xs truncate">
                     {doc.originalName}
                   </td>
