@@ -22,15 +22,22 @@ export function isAuthenticated(): boolean {
   return getToken() !== null;
 }
 
-// Decode email from the JWT payload (no extra library needed)
+// Decode the JWT payload (no extra library needed)
 // JWT = header.payload.signature — payload is base64url-encoded JSON
-export function getUserEmail(): string | null {
+function decodePayload(): Record<string, any> | null {
   const token = getToken();
   if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.email ?? null;
+    return JSON.parse(atob(token.split('.')[1]));
   } catch {
     return null;
   }
+}
+
+export function getUserEmail(): string | null {
+  return decodePayload()?.email ?? null;
+}
+
+export function getUserName(): string | null {
+  return decodePayload()?.name ?? null;
 }

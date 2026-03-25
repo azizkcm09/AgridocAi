@@ -5,7 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
 import fetcher from '@/lib/fetcher';
-import { isAuthenticated, clearToken, getUserEmail } from '@/lib/auth';
+import api from '@/lib/api';
+import { isAuthenticated, clearToken, getUserEmail, getUserName } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 
 // --- Navigation items ---
@@ -62,7 +63,25 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [email, setEmail]     = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const bellRef = useRef<HTMLDivElement>(null);
+
+  // Fetch user profile for avatar + name
+  const { data: profileData } = useSWR<{ id: string; email: string; name: string | null; avatarPath: string | null }>(
+    mounted ? '/users/profile' : null,
+    fetcher,
+  );
+
+  // Fetch presigned avatar URL when profile loads
+  useEffect(() => {
+    if (profileData?.avatarPath) {
+      api.get('/storage/download-url', { params: { key: profileData.avatarPath } })
+        .then((res) => setAvatarUrl(res.data.downloadUrl))
+        .catch(() => setAvatarUrl(null));
+    } else {
+      setAvatarUrl(null);
+    }
+  }, [profileData?.avatarPath]);
 
   // Poll for documents needing review every 15s
   const { data: reviewData } = useSWR<{ data: { id: string; originalName: string; createdAt: string }[] }>(
@@ -313,14 +332,23 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               )}
             </div>
 
-            {/* User avatar */}
-            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <span className="text-sm text-gray-600 dark:text-gray-400">{email ?? 'user@example.com'}</span>
+            {/* User avatar + name */}
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  {(profileData?.name ?? getUserName() ?? email ?? '?').charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {profileData?.name ?? getUserName() ?? email ?? 'user@example.com'}
+            </span>
           </div>
         </header>
 

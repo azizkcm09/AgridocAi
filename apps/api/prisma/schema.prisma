@@ -38,11 +38,13 @@ enum AuditAction {
 // --- MODELS (The Entities) ---
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String   // Hashed
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String   // Hashed
+  name       String?  // Display name (optional, set via profile)
+  avatarPath String?  // Path to avatar image in MinIO storage
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
   documents Document[]

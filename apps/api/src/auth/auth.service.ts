@@ -21,8 +21,10 @@ export class AuthService {
   }
 
   // 2. Login (Generate JWT)
+  // Include name in the payload so the frontend can display it
+  // without an extra API call (decoded from the token client-side)
   async login(user: any) {
-    const payload = { email: user.email, sub: user.id };
+    const payload = { email: user.email, sub: user.id, name: user.name ?? null };
     return {
       access_token: this.jwtService.sign(payload),
     };
