@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { TableRowSkeleton } from '@/components/Skeleton';
+import EmptyState from '@/components/EmptyState';
 
 type AuditLog = {
   id: string;
@@ -118,13 +120,15 @@ export default function AuditPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={4} className="text-center py-12 text-gray-400">Loading...</td>
-              </tr>
+              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-12 text-gray-400">
-                  No audit logs found.
+                <td colSpan={4}>
+                  <EmptyState
+                    icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                    title="No activity yet"
+                    description="Actions on your documents will appear here."
+                  />
                 </td>
               </tr>
             ) : (

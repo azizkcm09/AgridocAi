@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import api from '@/lib/api';
 import { useToast } from '@/lib/toast-context';
 import Modal from '@/components/Modal';
+import { DetailPanelSkeleton } from '@/components/Skeleton';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -222,7 +223,7 @@ export default function DocumentDetailPage() {
   // ── Render ──
 
   if (loading) {
-    return <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>;
+    return <div className="space-y-4"><DetailPanelSkeleton /></div>;
   }
   if (!doc) return null;
 

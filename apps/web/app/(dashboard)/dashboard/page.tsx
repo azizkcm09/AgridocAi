@@ -12,6 +12,8 @@ import DocumentsOverTimeChart from '@/components/charts/DocumentsOverTimeChart';
 import DocumentsByTypeChart from '@/components/charts/DocumentsByTypeChart';
 import DocumentsByStatusChart from '@/components/charts/DocumentsByStatusChart';
 import ConfidenceDistributionChart from '@/components/charts/ConfidenceDistributionChart';
+import { StatCardSkeleton, ChartSkeleton, Skeleton } from '@/components/Skeleton';
+import EmptyState from '@/components/EmptyState';
 
 type Analytics = {
   docsPerDay: { date: string; count: number }[];
@@ -161,10 +163,6 @@ export default function DashboardPage() {
     return 'text-blue-600 bg-blue-50 dark:bg-blue-900/30';
   }
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>;
-  }
-
   return (
     <div className="space-y-6">
 
@@ -175,6 +173,11 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
+      {loading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)}
+        </div>
+      ) : (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Documents</p>
@@ -215,16 +218,27 @@ export default function DashboardPage() {
           <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{formatSeconds(kpis?.avgProcessingTimeSec ?? 0)}</p>
         </div>
       </div>
+      )}
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <DocumentsOverTimeChart data={analytics?.docsPerDay ?? []} />
-        <DocumentsByTypeChart data={analytics?.docsByType ?? []} />
-        <DocumentsByStatusChart data={analytics?.docsByStatus ?? []} />
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <ChartSkeleton key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <DocumentsOverTimeChart data={analytics?.docsPerDay ?? []} />
+          <DocumentsByTypeChart data={analytics?.docsByType ?? []} />
+          <DocumentsByStatusChart data={analytics?.docsByStatus ?? []} />
+        </div>
+      )}
 
       {/* Confidence Distribution (full width) */}
-      <ConfidenceDistributionChart data={analytics?.confidenceDistribution ?? []} />
+      {loading ? (
+        <ChartSkeleton />
+      ) : (
+        <ConfidenceDistributionChart data={analytics?.confidenceDistribution ?? []} />
+      )}
 
       {/* Bottom: Upload zone + Audit logs */}
       <div className="grid grid-cols-5 gap-4">
@@ -321,8 +335,25 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {!auditLogs || auditLogs.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">No recent activity.</p>
+          {logsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 p-2">
+                  <Skeleton className="w-6 h-6 rounded-full shrink-0" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-32 mb-1.5" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-3 w-10 shrink-0" />
+                </div>
+              ))}
+            </div>
+          ) : !auditLogs || auditLogs.length === 0 ? (
+            <EmptyState
+              icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+              title="No activity yet"
+              description="Actions on your documents will appear here."
+            />
           ) : (
             <div className="space-y-1">
               {auditLogs.map((log) => (
