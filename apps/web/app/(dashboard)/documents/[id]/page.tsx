@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import api from '@/lib/api';
 import { useToast } from '@/lib/toast-context';
 import Modal from '@/components/Modal';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import PdfViewer from '@/components/PdfViewer';
 import { DetailPanelSkeleton } from '@/components/Skeleton';
 
 // ── Types ──────────────────────────────────────────────
@@ -302,11 +303,10 @@ export default function DocumentDetailPage() {
 
       {/* ── BREADCRUMB + STATUS ── */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <Link href="/documents" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Documents</Link>
-          <span>/</span>
-          <span className="text-gray-800 dark:text-gray-200 font-medium truncate max-w-xs">{doc.originalName}</span>
-        </div>
+        <Breadcrumbs items={[
+          { label: 'Documents', href: '/documents' },
+          { label: doc.originalName },
+        ]} />
         <div className="flex items-center gap-3">
           <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[doc.status] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
             {doc.status.replace(/_/g, ' ')}
@@ -358,11 +358,7 @@ export default function DocumentDetailPage() {
           {/* Actual preview */}
           <div className="flex-1 bg-gray-50 dark:bg-gray-950 overflow-hidden">
             {previewUrl && isPdf && (
-              <iframe
-                src={previewUrl}
-                className="w-full h-full border-0"
-                title="Document preview"
-              />
+              <PdfViewer url={previewUrl} />
             )}
             {previewUrl && isImage && (
               <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
