@@ -139,7 +139,6 @@ export class AdminService {
       processingDocuments,
       errorDocuments,
       byType,
-      recentVolume,
     ] = await Promise.all([
       // User counts
       this.prisma.user.count(),
@@ -160,14 +159,18 @@ export class AdminService {
         _count: { _all: true },
       }),
 
-      // Daily volume for last 30 days
-      this.prisma.document.groupBy({
-        by: ['createdAt'],
-        where: { deletedAt: null, createdAt: { gte: thirtyDaysAgo } },
-        _count: { _all: true },
-        orderBy: { createdAt: 'asc' },
-      }),
     ]);
+
+    // Raw query: group by calendar day (DATE trunc) instead of exact timestamp
+    // Prisma groupBy can't truncate datetime fields, so a raw query is required here
+    const recentVolume: { date: string; count: bigint }[] = await this.prisma.$queryRaw`
+      SELECT DATE("createdAt") AS date, COUNT(*) AS count
+      FROM "Document"
+      WHERE "deletedAt" IS NULL
+        AND "createdAt" >= ${thirtyDaysAgo}
+      GROUP BY DATE("createdAt")
+      ORDER BY DATE("createdAt") ASC
+    `;
 
     const validationRate =
       totalDocuments > 0 ? Math.round((validatedDocuments / totalDocuments) * 100) : 0;
@@ -185,8 +188,8 @@ export class AdminService {
       },
       byType: byType.map((b) => ({ type: b.type, count: b._count._all })),
       recentVolume: recentVolume.map((v) => ({
-        date: v.createdAt,
-        count: v._count._all,
+        date: v.date,
+        count: Number(v.count),
       })),
     };
   }
