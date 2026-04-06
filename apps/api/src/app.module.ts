@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { DocumentsModule } from './documents/documents.module';
 import { StorageModule } from './storage/storage.module';
 import { AuditModule } from './audit/audit.module';
+import { AdminModule } from './admin/admin.module';
 import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from './cache/cache.module';
 
@@ -18,6 +19,7 @@ import { CacheModule } from './cache/cache.module';
     DocumentsModule,
     StorageModule,
     AuditModule,
+    AdminModule,
     BullModule.forRoot({
       connection: {
         host: 'localhost',
