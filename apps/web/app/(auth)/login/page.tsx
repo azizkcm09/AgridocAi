@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { setToken } from '@/lib/auth';
+import { setToken, getUserRole } from '@/lib/auth';
 
 // Shape of the form data
 type LoginFormData = {
@@ -34,7 +34,7 @@ export default function LoginPage() {
       });
       // NestJS returns { access_token: "..." }
       setToken(response.data.access_token);
-      router.push('/dashboard');
+      router.push(getUserRole() === 'ADMIN' ? '/admin' : '/dashboard');
     } catch {
       setServerError('Invalid email or password.');
     }
