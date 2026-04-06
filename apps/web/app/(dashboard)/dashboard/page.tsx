@@ -52,7 +52,7 @@ function WowIndicator({ current, previous }: { current: number; previous: number
   const pct = previous === 0 ? 100 : Math.round(((current - previous) / previous) * 100);
   const isUp = pct >= 0;
   return (
-    <span className={`inline-flex items-center text-xs font-medium ${isUp ? 'text-green-600' : 'text-red-500'}`}>
+    <span className={`inline-flex items-center text-xs font-medium ${isUp ? 'text-emerald-600' : 'text-red-500'}`}>
       {isUp ? (
         <svg className="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
       ) : (
@@ -158,18 +158,18 @@ export default function DashboardPage() {
   }
 
   function auditIconStyle(action: string) {
-    if (action === 'VALIDATE_DOC') return 'text-green-600 bg-green-50 dark:bg-green-900/30';
-    if (action === 'DELETE_DOC')   return 'text-red-600 bg-red-50 dark:bg-red-900/30';
-    return 'text-blue-600 bg-blue-50 dark:bg-blue-900/30';
+    if (action === 'VALIDATE_DOC') return 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30';
+    if (action === 'DELETE_DOC')   return 'text-rose-600 bg-rose-50 dark:bg-rose-900/30';
+    return 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30';
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
 
       {/* Page title */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome back.</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Welcome back.</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
       </div>
 
       {/* KPI Cards */}
@@ -179,43 +179,46 @@ export default function DashboardPage() {
         </div>
       ) : (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Documents</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.total ?? 0}</p>
+        <div
+          onClick={() => router.push('/documents')}
+          className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-indigo-500 p-5 hover:shadow-md hover:ring-slate-900/10 cursor-pointer transition-shadow"
+        >
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Documents</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.total ?? 0}</p>
           <WowIndicator current={kpis?.thisWeekCount ?? 0} previous={kpis?.lastWeekCount ?? 0} />
         </div>
 
         <div
           onClick={() => router.push('/documents?status=REVIEW_REQUIRED')}
-          className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5 hover:border-yellow-200 dark:hover:border-yellow-700 cursor-pointer transition-colors"
+          className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-amber-500 p-5 hover:ring-amber-300 dark:hover:ring-amber-700 cursor-pointer transition-colors"
         >
-          <p className="text-sm text-gray-500 dark:text-gray-400">Pending Review</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.pendingReview ?? 0}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Pending Review</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.pendingReview ?? 0}</p>
           {(kpis?.pendingReview ?? 0) > 0 && (
-            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-700">
+            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700">
               Needs attention
             </span>
           )}
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Confidence</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.avgConfidence ?? 0}%</p>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-indigo-500 p-5">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Avg. Confidence</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.avgConfidence ?? 0}%</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Validation Rate</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.validationRate ?? 0}%</p>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-emerald-500 p-5">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Validation Rate</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.validationRate ?? 0}%</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Rejection Rate</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{kpis?.rejectionRate ?? 0}%</p>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-rose-500 p-5">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Rejection Rate</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.rejectionRate ?? 0}%</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Processing</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{formatSeconds(kpis?.avgProcessingTimeSec ?? 0)}</p>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-indigo-500 p-5">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Avg. Processing</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{formatSeconds(kpis?.avgProcessingTimeSec ?? 0)}</p>
         </div>
       </div>
       )}
@@ -244,14 +247,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-5 gap-4">
 
         {/* Upload zone - 3/5 width */}
-        <div className="col-span-5 lg:col-span-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+        <div className="col-span-5 lg:col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
 
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Upload Document</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Upload Document</p>
             <select
               value={docType}
               onChange={(e) => setDocType(e.target.value)}
-              className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border-slate-200 dark:border-slate-700 rounded-md border px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {DOC_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -264,33 +267,33 @@ export default function DashboardPage() {
             onDragLeave={() => setIsDragging(false)}
             onDrop={onDrop}
             onClick={() => !uploading && !pendingFile && fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center py-14 transition-colors ${
+            className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center py-14 transition-colors ${
               pendingFile
-                ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
                 : isDragging
-                  ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 cursor-pointer'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'
+                  ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 cursor-pointer'
+                  : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer'
             }`}
           >
             {pendingFile ? (
               <>
-                <svg className="w-10 h-10 text-blue-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-10 h-10 text-indigo-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{pendingFile.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{formatBytes(pendingFile.size)} &middot; {pendingFile.type || 'unknown type'}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{pendingFile.name}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{formatBytes(pendingFile.size)} &middot; {pendingFile.type || 'unknown type'}</p>
               </>
             ) : (
               <>
-                <svg className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                     d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
                 </svg>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
                   {uploading ? 'Uploading...' : 'Drop invoice or certificate here to process.'}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">or click to select files</p>
+                <p className="text-xs text-slate-400 mt-1">or click to select files</p>
               </>
             )}
             <input
@@ -306,13 +309,13 @@ export default function DashboardPage() {
             <div className="flex gap-3 mt-3">
               <button
                 onClick={() => { setPendingFile(null); setUploadMsg(null); }}
-                className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex-1 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleUpload(pendingFile)}
-                className="flex-1 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors"
+                className="flex-1 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors"
               >
                 Proceed
               </button>
@@ -320,17 +323,17 @@ export default function DashboardPage() {
           )}
 
           {uploadMsg && (
-            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('Document uploaded') ? 'text-green-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
+            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('Document uploaded') ? 'text-emerald-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>
               {uploadMsg}
             </p>
           )}
         </div>
 
         {/* Audit logs - 2/5 width */}
-        <div className="col-span-5 lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+        <div className="col-span-5 lg:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Recent Audit Logs</p>
-            <Link href="/audit" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Recent Audit Logs</p>
+            <Link href="/audit" className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium transition-colors">
               View all
             </Link>
           </div>
@@ -350,7 +353,7 @@ export default function DashboardPage() {
             </div>
           ) : !auditLogs || auditLogs.length === 0 ? (
             <EmptyState
-              icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+              icon={<svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
               title="No activity yet"
               description="Actions on your documents will appear here."
             />
@@ -361,19 +364,19 @@ export default function DashboardPage() {
                   key={log.id}
                   onClick={() => log.documentId && router.push(`/documents/${log.documentId}`)}
                   className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
-                    log.documentId ? 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer' : ''
+                    log.documentId ? 'hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer' : ''
                   }`}
                 >
                   <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${auditIconStyle(log.action)}`}>
                     {auditIconChar(log.action)}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 dark:text-gray-200 truncate">
-                      {log.document?.originalName ?? <span className="text-gray-400 italic">Deleted document</span>}
+                    <p className="text-sm text-slate-800 dark:text-slate-200 truncate">
+                      {log.document?.originalName ?? <span className="text-slate-400 italic">Deleted document</span>}
                     </p>
-                    <p className="text-xs text-gray-400 capitalize">{log.action.toLowerCase().replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-slate-400 capitalize">{log.action.toLowerCase().replace(/_/g, ' ')}</p>
                   </div>
-                  <span className="shrink-0 text-xs text-gray-400">{formatTimeAgo(log.timestamp)}</span>
+                  <span className="shrink-0 text-xs text-slate-400">{formatTimeAgo(log.timestamp)}</span>
                 </div>
               ))}
             </div>

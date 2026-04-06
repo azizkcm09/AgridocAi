@@ -19,12 +19,12 @@ type Document = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:          'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
-  PROCESSING:       'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-  REVIEW_REQUIRED:  'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
-  VALIDATED:        'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-  REJECTED:         'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-  ERROR:            'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold',
+  PENDING:          'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+  PROCESSING:       'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+  REVIEW_REQUIRED:  'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+  VALIDATED:        'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+  REJECTED:         'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
+  ERROR:            'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 font-semibold',
 };
 
 const PAGE_SIZE = 8;
@@ -127,7 +127,7 @@ export default function DocumentsPage() {
 
   // ── Selection helpers ──
 
-  
+
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);       // Clone the Set (new reference)
@@ -137,7 +137,7 @@ export default function DocumentsPage() {
     });
   }
 
-  
+
   const allSelected = documents.length > 0 && documents.every((d) => selectedIds.has(d.id));
 
   function toggleAll() {
@@ -149,7 +149,7 @@ export default function DocumentsPage() {
   }
 
   // ── Batch action handlers ──
-  
+
   async function handleBatchValidate() {
     setBatchLoading(true);
     try {
@@ -235,13 +235,13 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-4">
 
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Documents</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Documents</h1>
 
       {/* -- FILTERS -- */}
       <div className="flex items-center gap-3">
 
         <div className="relative flex-1 max-w-md">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -251,14 +251,14 @@ export default function DocumentsPage() {
             placeholder="Search by filename..."
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
           />
         </div>
 
         <select
           value={typeFilter}
           onChange={(e) => handleTypeChange(e.target.value)}
-          className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
         >
           <option value="ALL">Type: All</option>
           <option value="INVOICE">Invoice</option>
@@ -270,7 +270,7 @@ export default function DocumentsPage() {
         <select
           value={statusFilter}
           onChange={(e) => handleStatusChange(e.target.value)}
-          className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
         >
           <option value="ALL">Status: All</option>
           <option value="PENDING">Pending</option>
@@ -289,41 +289,41 @@ export default function DocumentsPage() {
           (batchLoading) to prevent double-clicks sending duplicate requests.
       */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-4 py-2.5">
           {/* Count label */}
-          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+          <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
             {selectedIds.size} selected
           </span>
 
           {/* Divider line between count and buttons */}
-          <div className="h-5 w-px bg-blue-200 dark:bg-blue-700" />
+          <div className="h-5 w-px bg-indigo-200 dark:bg-indigo-700" />
 
           {/* Validate All — only makes sense if at least some are REVIEW_REQUIRED */}
           <button
             onClick={handleBatchValidate}
             disabled={batchLoading}
-            className="text-sm font-medium text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 disabled:opacity-50 transition-colors"
+            className="text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 disabled:opacity-50 transition-colors"
           >
             Validate All
           </button>
           <button
             onClick={handleBatchReject}
             disabled={batchLoading}
-            className="text-sm font-medium text-yellow-700 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 disabled:opacity-50 transition-colors"
+            className="text-sm font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 disabled:opacity-50 transition-colors"
           >
             Reject All
           </button>
           <button
             onClick={handleBatchExport}
             disabled={batchLoading}
-            className="text-sm font-medium text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+            className="text-sm font-medium text-indigo-700 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 disabled:opacity-50 transition-colors"
           >
             Export All
           </button>
           <button
             onClick={handleBatchDelete}
             disabled={batchLoading}
-            className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50 transition-colors"
+            className="text-sm font-medium text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 disabled:opacity-50 transition-colors"
           >
             Delete All
           </button>
@@ -334,7 +334,7 @@ export default function DocumentsPage() {
           {/* Clear selection — resets the Set to empty */}
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
           >
             Clear
           </button>
@@ -342,10 +342,10 @@ export default function DocumentsPage() {
       )}
 
       {/* -- TABLE -- */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-visible">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 overflow-visible">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800 text-left">
+          <thead className="bg-slate-50 dark:bg-slate-800/50">
+            <tr className="border-b border-slate-100 dark:border-slate-800 text-left">
               {/* Checkbox column header — "select all" toggle for current page.
                   The "checked" state uses the allSelected variable we computed above.
                   onChange fires toggleAll() which either selects all or deselects all. */}
@@ -354,14 +354,14 @@ export default function DocumentsPage() {
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
-                  className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
                 />
               </th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Document Name</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Type</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Upload Date</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-16">Actions</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Document Name</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Type</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Upload Date</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide w-16">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -371,7 +371,7 @@ export default function DocumentsPage() {
               <tr>
                 <td colSpan={6}>
                   <EmptyState
-                    icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                    icon={<svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
                     title="No documents yet"
                     description="Upload your first document to get started."
                     action={{ label: 'Go to Dashboard', onClick: () => router.push('/dashboard') }}
@@ -383,7 +383,7 @@ export default function DocumentsPage() {
                 <tr
                   key={doc.id}
                   onClick={() => router.push(`/documents/${doc.id}`)}
-                  className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                  className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
                 >
                   {/* Per-row checkbox.
                       e.stopPropagation() prevents the row's onClick from firing
@@ -395,27 +395,27 @@ export default function DocumentsPage() {
                       type="checkbox"
                       checked={selectedIds.has(doc.id)}
                       onChange={() => toggleOne(doc.id)}
-                      className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
                     />
                   </td>
-                  <td className="px-4 py-3 text-blue-600 dark:text-blue-400 font-medium max-w-xs truncate">
+                  <td className="px-4 py-3 text-indigo-600 dark:text-indigo-400 font-medium max-w-xs truncate">
                     {doc.originalName}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 capitalize">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 capitalize">
                     {doc.type.charAt(0) + doc.type.slice(1).toLowerCase()}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                     {formatDate(doc.createdAt)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs ${STATUS_COLORS[doc.status] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                    <span className={`px-2.5 py-1 rounded-md text-xs ${STATUS_COLORS[doc.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                       {doc.status.charAt(0) + doc.status.slice(1).toLowerCase().replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-3 relative" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setOpenMenu(openMenu === doc.id ? null : doc.id)}
-                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       ⋮
                     </button>
@@ -423,18 +423,18 @@ export default function DocumentsPage() {
                     {openMenu === doc.id && (
                       <div
                         ref={menuRef}
-                        className={`absolute right-4 ${dropdownPosition(index)} z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg w-36 py-1`}
+                        className={`absolute right-4 ${dropdownPosition(index)} z-20 bg-white dark:bg-slate-900 rounded-lg shadow-xl ring-1 ring-slate-900/5 dark:ring-slate-700 w-36 py-1`}
                       >
                         <button
                           onClick={() => { setOpenMenu(null); router.push(`/documents/${doc.id}`); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                          className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                         >
                           View
                         </button>
                         {doc.status === 'REVIEW_REQUIRED' && (
                           <button
                             onClick={() => { setOpenMenu(null); router.push(`/documents/${doc.id}`); }}
-                            className="w-full text-left px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                            className="w-full text-left px-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
                           >
                             Validate
                           </button>
@@ -442,14 +442,14 @@ export default function DocumentsPage() {
                         {doc.status === 'VALIDATED' && (
                           <button
                             onClick={() => handleExport(doc)}
-                            className="w-full text-left px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
+                            className="w-full text-left px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                           >
                             Export
                           </button>
                         )}
                         <button
                           onClick={() => { setOpenMenu(null); setDeleteTarget(doc); }}
-                          className="w-full text-left px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                          className="w-full text-left px-4 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30"
                         >
                           Delete
                         </button>
@@ -465,21 +465,21 @@ export default function DocumentsPage() {
 
       {/* Delete confirmation modal */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Document">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-          Are you sure you want to delete <span className="font-medium text-gray-800 dark:text-gray-200">{deleteTarget?.originalName}</span>?
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+          Are you sure you want to delete <span className="font-medium text-slate-800 dark:text-slate-200">{deleteTarget?.originalName}</span>?
         </p>
-        <p className="text-xs text-gray-400 mb-5">This document will be removed from your list. Audit logs are preserved.</p>
+        <p className="text-xs text-slate-400 mb-5">This document will be removed from your list. Audit logs are preserved.</p>
         <div className="flex gap-3">
           <button
             onClick={() => setDeleteTarget(null)}
-            className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="flex-1 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={confirmDelete}
             disabled={deleting}
-            className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="flex-1 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors"
           >
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
@@ -487,20 +487,20 @@ export default function DocumentsPage() {
       </Modal>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <span>Page {page} of {totalPages} · {total} total</span>
           <div className="flex gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ‹
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ›
             </button>

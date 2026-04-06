@@ -156,22 +156,22 @@ export default function SettingsPage() {
   function StatusBadge({ status }: { status: 'connected' | 'disconnected' | 'checking' }) {
     if (status === 'checking') {
       return (
-        <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
+        <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-1.5">
           Checking...
         </span>
       );
     }
     if (status === 'connected') {
       return (
-        <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 rounded-lg px-3 py-1.5">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
+        <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-md px-3 py-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
           Connected
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-lg px-3 py-1.5">
-        <span className="w-2 h-2 rounded-full bg-red-500" />
+      <span className="flex items-center gap-1.5 text-sm text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-800 rounded-md px-3 py-1.5">
+        <span className="w-2 h-2 rounded-full bg-rose-500" />
         Disconnected
       </span>
     );
@@ -183,13 +183,13 @@ export default function SettingsPage() {
     <div className="space-y-6">
 
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your account and monitor system health.</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Settings</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your account and monitor system health.</p>
       </div>
 
       {/* ── Profile Section ── */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-6">
-        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-5">Profile</h2>
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-6">
+        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-5">Profile</h2>
 
         <div className="flex items-start gap-6">
           {/* Avatar */}
@@ -197,12 +197,12 @@ export default function SettingsPage() {
             <button
               onClick={() => avatarInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="relative w-20 h-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 transition-colors group"
+              className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors group"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <svg className="w-8 h-8 text-gray-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-slate-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               )}
@@ -221,34 +221,34 @@ export default function SettingsPage() {
               className="hidden"
               onChange={handleAvatarChange}
             />
-            {uploadingAvatar && <p className="text-xs text-gray-400 mt-1 text-center">Uploading...</p>}
+            {uploadingAvatar && <p className="text-xs text-slate-400 mt-1 text-center">Uploading...</p>}
           </div>
 
           {/* Name + Email fields */}
           <div className="flex-1 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your display name"
-                className="w-full max-w-sm px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full max-w-sm px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
               <input
                 type="email"
                 value={email}
                 disabled
-                className="w-full max-w-sm px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-500 cursor-not-allowed"
+                className="w-full max-w-sm px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-500 cursor-not-allowed"
               />
             </div>
             <button
               onClick={handleSaveProfile}
               disabled={savingProfile}
-              className="px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {savingProfile ? 'Saving...' : 'Save Profile'}
             </button>
@@ -258,54 +258,54 @@ export default function SettingsPage() {
 
       {/* ── Activity Summary ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Docs uploaded this month</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{activity?.uploaded ?? 0}</p>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Docs uploaded this month</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{activity?.uploaded ?? 0}</p>
         </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Docs validated this month</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{activity?.validated ?? 0}</p>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Docs validated this month</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{activity?.validated ?? 0}</p>
         </div>
       </div>
 
       {/* ── Password Change Section ── */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-6">
-        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-5">Change Password</h2>
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-6">
+        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-5">Change Password</h2>
         <div className="space-y-4 max-w-sm">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
             <input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">New Password</label>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             />
           </div>
           <button
             onClick={handleChangePassword}
             disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
-            className="px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             {changingPassword ? 'Changing...' : 'Change Password'}
           </button>
@@ -313,60 +313,60 @@ export default function SettingsPage() {
       </div>
 
       {/* ── System Health ── */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
         <div className="p-5 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">System Health</h2>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">System Health</h2>
           <button
             onClick={checkHealth}
             disabled={checking}
-            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors disabled:opacity-50"
+            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium transition-colors disabled:opacity-50"
           >
             {checking ? 'Checking...' : 'Refresh'}
           </button>
         </div>
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">API</p>
-            <p className="text-xs text-gray-400 mt-0.5">NestJS backend</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">API</p>
+            <p className="text-xs text-slate-400 mt-0.5">NestJS backend</p>
           </div>
           <StatusBadge status={health ? 'connected' : (checking ? 'checking' : 'disconnected')} />
         </div>
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Database</p>
-            <p className="text-xs text-gray-400 mt-0.5">PostgreSQL via Prisma</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Database</p>
+            <p className="text-xs text-slate-400 mt-0.5">PostgreSQL via Prisma</p>
           </div>
           <StatusBadge status={checking ? 'checking' : (health?.database ?? 'disconnected')} />
         </div>
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">AI Service</p>
-            <p className="text-xs text-gray-400 mt-0.5">FastAPI OCR worker</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">AI Service</p>
+            <p className="text-xs text-slate-400 mt-0.5">FastAPI OCR worker</p>
           </div>
           <StatusBadge status={checking ? 'checking' : (health?.ai ?? 'disconnected')} />
         </div>
       </div>
 
       {/* ── About ── */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
         <div className="p-5">
-          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">About</h2>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">About</h2>
         </div>
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Version</p>
-            <p className="text-xs text-gray-400 mt-0.5">Current application version</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Version</p>
+            <p className="text-xs text-slate-400 mt-0.5">Current application version</p>
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
+          <span className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-1.5">
             1.0.0
           </span>
         </div>
         <div className="p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Stack</p>
-            <p className="text-xs text-gray-400 mt-0.5">Core technologies</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Stack</p>
+            <p className="text-xs text-slate-400 mt-0.5">Core technologies</p>
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
+          <span className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-1.5">
             Next.js + NestJS + FastAPI
           </span>
         </div>

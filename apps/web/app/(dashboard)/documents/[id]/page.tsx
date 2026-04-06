@@ -86,20 +86,20 @@ const FIELD_DEFS: Record<string, FieldDef[]> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:          'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
-  PROCESSING:       'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-  REVIEW_REQUIRED:  'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
-  VALIDATED:        'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-  REJECTED:         'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-  ERROR:            'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
+  PENDING:          'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+  PROCESSING:       'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+  REVIEW_REQUIRED:  'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+  VALIDATED:        'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+  REJECTED:         'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
+  ERROR:            'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400',
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  UPLOAD:        'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-  AUTO_EXTRACT:  'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+  UPLOAD:        'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+  AUTO_EXTRACT:  'bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400',
   UPDATE_FIELD:  'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
-  VALIDATE_DOC:  'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-  DELETE_DOC:    'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+  VALIDATE_DOC:  'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+  DELETE_DOC:    'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
 };
 
 // ── Component ──────────────────────────────────────────
@@ -308,18 +308,18 @@ export default function DocumentDetailPage() {
           { label: doc.originalName },
         ]} />
         <div className="flex items-center gap-3">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[doc.status] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${STATUS_COLORS[doc.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
             {doc.status.replace(/_/g, ' ')}
           </span>
           {/* Confidence bar */}
           <div className="flex items-center gap-2">
-            <div className="w-20 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+            <div className="w-20 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${confidence >= 80 ? 'bg-green-500' : confidence >= 50 ? 'bg-yellow-500' : 'bg-red-400'}`}
+                className={`h-full rounded-full transition-all ${confidence >= 80 ? 'bg-emerald-500' : confidence >= 50 ? 'bg-amber-500' : 'bg-rose-400'}`}
                 style={{ width: `${confidence}%` }}
               />
             </div>
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{confidence}%</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{confidence}%</span>
           </div>
         </div>
       </div>
@@ -328,19 +328,19 @@ export default function DocumentDetailPage() {
       <div className="grid grid-cols-5 gap-4" style={{ height: 'calc(100vh - 220px)' }}>
 
         {/* Left: Document Preview — 3/5 */}
-        <div className="col-span-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden">
+        <div className="col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 flex flex-col overflow-hidden">
 
-          <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{doc.originalName}</p>
-                <p className="text-xs text-gray-400">{doc.mimeType} · {formatBytes(doc.size)} · {formatDate(doc.createdAt)}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{doc.originalName}</p>
+                <p className="text-xs text-slate-400">{doc.mimeType} · {formatBytes(doc.size)} · {formatDate(doc.createdAt)}</p>
               </div>
             </div>
             {previewUrl && (
@@ -348,7 +348,7 @@ export default function DocumentDetailPage() {
                 href={previewUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium"
               >
                 Open in new tab
               </a>
@@ -356,7 +356,7 @@ export default function DocumentDetailPage() {
           </div>
 
           {/* Actual preview */}
-          <div className="flex-1 bg-gray-50 dark:bg-gray-950 overflow-hidden">
+          <div className="flex-1 bg-slate-50 dark:bg-slate-950 overflow-hidden">
             {previewUrl && isPdf && (
               <PdfViewer url={previewUrl} />
             )}
@@ -371,48 +371,48 @@ export default function DocumentDetailPage() {
             )}
             {!previewUrl && (
               <div className="flex-1 flex flex-col items-center justify-center h-full">
-                <svg className="w-14 h-14 text-gray-200 dark:text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-14 h-14 text-slate-200 dark:text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="text-sm text-gray-400">Preview unavailable</p>
+                <p className="text-sm text-slate-400">Preview unavailable</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Right: Extracted Data — 2/5 */}
-        <div className="col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden">
+        <div className="col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 flex flex-col overflow-hidden">
 
-          <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+          <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Extracted Data</h2>
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-medium">{doc.type}</span>
+              <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Extracted Data</h2>
+              <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">{doc.type}</span>
             </div>
 
             {/* Completeness bar */}
             {hasData && (
               <div className="flex items-center gap-2 mt-2">
-                <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${resolvedFields === totalFields ? 'bg-green-500' : 'bg-amber-500'}`}
+                    className={`h-full rounded-full transition-all ${resolvedFields === totalFields ? 'bg-emerald-500' : 'bg-amber-500'}`}
                     style={{ width: `${Math.round((resolvedFields / totalFields) * 100)}%` }}
                   />
                 </div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+                <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
                   {resolvedFields}/{totalFields} fields
                 </span>
               </div>
             )}
 
             {canEdit && (
-              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1.5">Review fields below. Mark missing ones as N/A, then validate.</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">Review fields below. Mark missing ones as N/A, then validate.</p>
             )}
             {!canEdit && doc.status === 'VALIDATED' && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">This document has been validated.</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">This document has been validated.</p>
             )}
             {!canEdit && doc.status !== 'VALIDATED' && doc.status !== 'REVIEW_REQUIRED' && (
-              <p className="text-xs text-gray-400 mt-0.5">Fields are read-only for this status.</p>
+              <p className="text-xs text-slate-400 mt-0.5">Fields are read-only for this status.</p>
             )}
           </div>
 
@@ -429,7 +429,7 @@ export default function DocumentDetailPage() {
                 return (
                   <div key={f.key}>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-gray-400 tracking-wide flex items-center gap-1.5">
+                      <label className="text-xs font-medium text-slate-400 tracking-wide flex items-center gap-1.5">
                         {f.label.toUpperCase()}
                         {f.required && !isNA && isEmpty && (
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Required — fill or mark N/A" />
@@ -439,7 +439,7 @@ export default function DocumentDetailPage() {
                         <button
                           type="button"
                           onClick={() => { setNaFieldKey(f.key); setNaReason(''); }}
-                          className="text-[10px] text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 font-medium transition-colors"
+                          className="text-[10px] text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 font-medium transition-colors"
                         >
                           Mark N/A
                         </button>
@@ -448,15 +448,15 @@ export default function DocumentDetailPage() {
 
                     {isNA ? (
                       /* Field is marked as N/A */
-                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">N/A</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-1 truncate">{override.reason}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 flex-1 truncate">{override.reason}</span>
                         {canEdit && (
                           <button
                             type="button"
                             onClick={() => handleRemoveNA(f.key)}
                             disabled={naLoading}
-                            className="text-xs text-red-400 hover:text-red-600 font-medium shrink-0"
+                            className="text-xs text-rose-400 hover:text-rose-600 font-medium shrink-0"
                           >
                             Undo
                           </button>
@@ -492,12 +492,12 @@ export default function DocumentDetailPage() {
               {/* Line items (invoice only) */}
               {doc.type === 'INVOICE' && Array.isArray(payload.lineItems) && payload.lineItems.length > 0 && (
                 <div>
-                  <label className="text-xs font-medium text-gray-400 tracking-wide mb-2 block">LINE ITEMS</label>
+                  <label className="text-xs font-medium text-slate-400 tracking-wide mb-2 block">LINE ITEMS</label>
                   <div className="space-y-2">
                     {payload.lineItems.map((item: any, i: number) => (
-                      <div key={i} className="text-xs bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2 flex justify-between">
-                        <span className="text-gray-700 dark:text-gray-300">{item.description}</span>
-                        <span className="text-gray-500 dark:text-gray-400 shrink-0 ml-2">
+                      <div key={i} className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg px-3 py-2 flex justify-between">
+                        <span className="text-slate-700 dark:text-slate-300">{item.description}</span>
+                        <span className="text-slate-500 dark:text-slate-400 shrink-0 ml-2">
                           {item.quantity} x {item.unitPrice}
                         </span>
                       </div>
@@ -509,10 +509,10 @@ export default function DocumentDetailPage() {
               {/* Report key findings */}
               {doc.type === 'REPORT' && Array.isArray(payload.keyFindings) && payload.keyFindings.length > 0 && (
                 <div>
-                  <label className="text-xs font-medium text-gray-400 tracking-wide mb-2 block">KEY FINDINGS</label>
+                  <label className="text-xs font-medium text-slate-400 tracking-wide mb-2 block">KEY FINDINGS</label>
                   <ul className="space-y-1">
                     {payload.keyFindings.map((finding: string, i: number) => (
-                      <li key={i} className="text-xs bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-700 dark:text-gray-300">
+                      <li key={i} className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-300">
                         {finding}
                       </li>
                     ))}
@@ -523,12 +523,12 @@ export default function DocumentDetailPage() {
               {/* No data yet */}
               {!hasData && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <svg className="w-10 h-10 text-gray-200 dark:text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-slate-200 dark:text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                       d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  <p className="text-sm text-gray-400">No extracted data yet.</p>
-                  <p className="text-xs text-gray-300 dark:text-gray-500 mt-1">
+                  <p className="text-sm text-slate-400">No extracted data yet.</p>
+                  <p className="text-xs text-slate-300 dark:text-slate-500 mt-1">
                     {doc.status === 'PROCESSING' ? 'AI is currently processing...' : 'Data will appear after AI extraction completes.'}
                   </p>
                 </div>
@@ -537,16 +537,16 @@ export default function DocumentDetailPage() {
 
             {/* Action buttons — only when REVIEW_REQUIRED */}
             {canEdit && hasData && (
-              <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
+              <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 {saveMsg && (
-                  <p className={`text-xs text-center mb-2 ${saveMsg.startsWith('Document validated') || saveMsg.startsWith('Document rejected') ? 'text-green-600' : 'text-red-500'}`}>
+                  <p className={`text-xs text-center mb-2 ${saveMsg.startsWith('Document validated') || saveMsg.startsWith('Document rejected') ? 'text-emerald-600' : 'text-rose-500'}`}>
                     {saveMsg}
                   </p>
                 )}
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                  className="w-full py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                 >
                   {saving ? 'Saving...' : 'Validate & Save'}
                 </button>
@@ -554,7 +554,7 @@ export default function DocumentDetailPage() {
                   type="button"
                   onClick={() => setRejectOpen(true)}
                   disabled={saving}
-                  className="w-full py-2.5 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50 transition-colors"
+                  className="w-full py-2.5 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-sm font-medium rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/30 disabled:opacity-50 transition-colors"
                 >
                   Reject
                 </button>
@@ -563,13 +563,13 @@ export default function DocumentDetailPage() {
 
             {/* Back + Export buttons when not editable */}
             {!canEdit && (
-              <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
+              <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 {doc.status === 'VALIDATED' && (
                   <button
                     type="button"
                     onClick={handleExport}
                     disabled={exporting}
-                    className="w-full py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                    className="w-full py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                   >
                     {exporting ? 'Exporting...' : 'Export PDF'}
                   </button>
@@ -577,7 +577,7 @@ export default function DocumentDetailPage() {
                 <button
                   type="button"
                   onClick={() => router.push('/documents')}
-                  className="w-full py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="w-full py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   Back to Documents
                 </button>
@@ -589,13 +589,13 @@ export default function DocumentDetailPage() {
 
       {/* ── AUDIT LOG TIMELINE ── */}
       {doc.auditLogs.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Activity Timeline</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">Activity Timeline</h2>
           <div className="space-y-3">
             {doc.auditLogs.map((log, i) => (
               <div key={log.id} className="flex items-start gap-3">
                 <div className="flex flex-col items-center">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${ACTION_COLORS[log.action] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${ACTION_COLORS[log.action] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                     {log.action === 'UPLOAD' && '↑'}
                     {log.action === 'AUTO_EXTRACT' && '⚙'}
                     {log.action === 'UPDATE_FIELD' && '✎'}
@@ -604,16 +604,16 @@ export default function DocumentDetailPage() {
                     {!['UPLOAD', 'AUTO_EXTRACT', 'UPDATE_FIELD', 'VALIDATE_DOC', 'DELETE_DOC'].includes(log.action) && '•'}
                   </span>
                   {i < doc.auditLogs.length - 1 && (
-                    <div className="w-px h-5 bg-gray-100 dark:bg-gray-800 mt-1" />
+                    <div className="w-px h-5 bg-slate-100 dark:bg-slate-800 mt-1" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0 pb-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{formatAction(log.action)}</span>
-                    <span className="text-xs text-gray-400">{formatTimestamp(log.timestamp)}</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{formatAction(log.action)}</span>
+                    <span className="text-xs text-slate-400">{formatTimestamp(log.timestamp)}</span>
                   </div>
                   {log.description && (
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">{log.description}</p>
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">{log.description}</p>
                   )}
                 </div>
               </div>
@@ -628,10 +628,10 @@ export default function DocumentDetailPage() {
         onClose={() => { setNaFieldKey(null); setNaReason(''); }}
         title="Mark Field as N/A"
       >
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-          Why is <span className="font-medium text-gray-800 dark:text-gray-200">{naFieldKey}</span> not available on this document?
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+          Why is <span className="font-medium text-slate-800 dark:text-slate-200">{naFieldKey}</span> not available on this document?
         </p>
-        <p className="text-xs text-gray-400 mb-3">This will be recorded in the audit trail for compliance.</p>
+        <p className="text-xs text-slate-400 mb-3">This will be recorded in the audit trail for compliance.</p>
         <textarea
           value={naReason}
           onChange={(e) => setNaReason(e.target.value)}
@@ -641,7 +641,7 @@ export default function DocumentDetailPage() {
         <div className="flex gap-3">
           <button
             onClick={() => { setNaFieldKey(null); setNaReason(''); }}
-            className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="flex-1 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
@@ -657,8 +657,8 @@ export default function DocumentDetailPage() {
 
       {/* Reject confirmation modal */}
       <Modal open={rejectOpen} onClose={() => { setRejectOpen(false); setRejectReason(''); }} title="Reject Document">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          Are you sure you want to reject <span className="font-medium text-gray-800 dark:text-gray-200">{doc.originalName}</span>?
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+          Are you sure you want to reject <span className="font-medium text-slate-800 dark:text-slate-200">{doc.originalName}</span>?
         </p>
         <textarea
           value={rejectReason}
@@ -669,14 +669,14 @@ export default function DocumentDetailPage() {
         <div className="flex gap-3">
           <button
             onClick={() => { setRejectOpen(false); setRejectReason(''); }}
-            className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="flex-1 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={confirmReject}
             disabled={saving}
-            className="flex-1 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="flex-1 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors"
           >
             {saving ? 'Rejecting...' : 'Reject'}
           </button>
@@ -689,5 +689,5 @@ export default function DocumentDetailPage() {
 // ── Helper Components ──────────────────────────────────
 
 function FieldError({ msg }: { msg: string }) {
-  return <p className="mt-1 text-xs text-red-500">{msg}</p>;
+  return <p className="mt-1 text-xs text-rose-500">{msg}</p>;
 }

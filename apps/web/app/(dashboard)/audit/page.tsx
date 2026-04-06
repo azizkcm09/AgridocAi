@@ -16,12 +16,12 @@ type AuditLog = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  UPLOAD:        'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-  AUTO_EXTRACT:  'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+  UPLOAD:        'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400',
+  AUTO_EXTRACT:  'bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
   UPDATE_FIELD:  'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-  VALIDATE_DOC:  'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-  DELETE_DOC:    'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-  EXPORT:        'bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400',
+  VALIDATE_DOC:  'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+  DELETE_DOC:    'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
+  EXPORT:        'bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400',
 };
 
 const PAGE_SIZE = 12;
@@ -84,8 +84,8 @@ export default function AuditPage() {
     <div className="space-y-4">
 
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Audit Logs</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Full history of all actions across your documents.</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Audit Logs</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Full history of all actions across your documents.</p>
       </div>
 
       {/* Filter */}
@@ -93,7 +93,7 @@ export default function AuditPage() {
         <select
           value={actionFilter}
           onChange={(e) => handleActionChange(e.target.value)}
-          className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
         >
           <option value="ALL">Action: All</option>
           <option value="UPLOAD">Upload</option>
@@ -104,18 +104,18 @@ export default function AuditPage() {
           <option value="EXPORT">Export</option>
         </select>
 
-        <span className="text-sm text-gray-400">{total} total entries</span>
+        <span className="text-sm text-slate-400">{total} total entries</span>
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 overflow-hidden">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800 text-left">
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Timestamp</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Action</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Document</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Description</th>
+          <thead className="bg-slate-50 dark:bg-slate-800/50">
+            <tr className="border-b border-slate-100 dark:border-slate-800 text-left">
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Timestamp</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Action</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Document</th>
+              <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Description</th>
             </tr>
           </thead>
           <tbody>
@@ -125,7 +125,7 @@ export default function AuditPage() {
               <tr>
                 <td colSpan={4}>
                   <EmptyState
-                    icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                    icon={<svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
                     title="No activity yet"
                     description="Actions on your documents will appear here."
                   />
@@ -135,25 +135,25 @@ export default function AuditPage() {
               logs.map((log) => (
                 <tr
                   key={log.id}
-                  className={`border-b border-gray-50 dark:border-gray-800 transition-colors ${
-                    log.documentId ? 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer' : ''
+                  className={`border-b border-slate-50 dark:border-slate-800 transition-colors ${
+                    log.documentId ? 'hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer' : ''
                   }`}
                   onClick={() => log.documentId && router.push(`/documents/${log.documentId}`)}
                 >
-                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                     {formatTimestamp(log.timestamp)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${ACTION_COLORS[log.action] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                    <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${ACTION_COLORS[log.action] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                       {formatAction(log.action)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-xs truncate">
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-300 max-w-xs truncate">
                     {log.document?.originalName ?? (
-                      <span className="text-gray-400 italic">Deleted document</span>
+                      <span className="text-slate-400 italic">Deleted document</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-sm truncate">
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-sm truncate">
                     {log.description ?? '—'}
                   </td>
                 </tr>
@@ -165,20 +165,20 @@ export default function AuditPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <span>Page {page} of {totalPages}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ‹
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ›
             </button>
