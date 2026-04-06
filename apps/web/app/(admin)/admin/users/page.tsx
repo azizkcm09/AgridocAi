@@ -20,11 +20,11 @@ const PAGE_SIZE = 10;
 
 export default function AdminUsersPage() {
   const { addToast } = useToast();
-  const [users, setUsers]       = useState<User[]>([]);
-  const [total, setTotal]       = useState(0);
-  const [loading, setLoading]   = useState(true);
-  const [page, setPage]         = useState(1);
-  const [actionLoading, setActionLoading] = useState<string | null>(null); // userId being mutated
+  const [users, setUsers]     = useState<User[]>([]);
+  const [total, setTotal]     = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage]       = useState(1);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -46,7 +46,7 @@ export default function AdminUsersPage() {
     try {
       const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
       await api.patch(`/admin/users/${user.id}/role`, { role: newRole });
-      addToast(`${user.email} is now ${newRole}`, 'success');
+      addToast(`${user.email} promoted to ${newRole}`, 'success');
       fetchUsers(page);
     } catch {
       addToast('Failed to update role', 'error');
@@ -59,7 +59,7 @@ export default function AdminUsersPage() {
     setActionLoading(user.id + '-active');
     try {
       await api.patch(`/admin/users/${user.id}/deactivate`);
-      addToast(`${user.email} ${user.isActive ? 'deactivated' : 'activated'}`, 'success');
+      addToast(`${user.email} ${user.isActive ? 'deactivated' : 'reactivated'}`, 'success');
       fetchUsers(page);
     } catch {
       addToast('Failed to update status', 'error');
@@ -73,82 +73,100 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 max-w-5xl">
+
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">User Management</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{total} registered users on the platform.</p>
+        <h1 className="text-lg font-semibold text-slate-800">User Management</h1>
+        <p className="text-sm text-slate-500 mt-0.5">{total} registered accounts on the platform.</p>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+      {/* Table */}
+      <div className="bg-white rounded-lg shadow-sm ring-1 ring-slate-900/5 overflow-hidden">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 dark:border-gray-800 text-left">
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">User</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Role</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Docs</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Joined</th>
-              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Actions</th>
+          <thead className="bg-slate-50">
+            <tr className="border-b border-slate-100 text-left">
+              <th className="px-4 py-2.5 text-xs font-medium text-slate-500 uppercase tracking-wide">Account</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-slate-500 uppercase tracking-wide">Role</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-slate-500 uppercase tracking-wide">Docs</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-slate-500 uppercase tracking-wide">Joined</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-50">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
             ) : users.length === 0 ? (
               <tr><td colSpan={6}>
                 <EmptyState
-                  icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+                  icon={<svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                   title="No users found"
                   description="No registered users yet."
                 />
               </td></tr>
             ) : users.map((user) => (
-              <tr key={user.id} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
+              <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                {/* Account */}
                 <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900 dark:text-gray-100">{user.name ?? '—'}</p>
-                  <p className="text-xs text-gray-400">{user.email}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded bg-slate-100 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-semibold text-slate-500">
+                        {(user.name ?? user.email).charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-800">{user.name ?? '—'}</p>
+                      <p className="text-[11px] text-slate-400">{user.email}</p>
+                    </div>
+                  </div>
                 </td>
+
+                {/* Role */}
                 <td className="px-4 py-3">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
                     user.role === 'ADMIN'
-                      ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'bg-slate-100 text-slate-500'
                   }`}>
                     {user.role}
                   </span>
                 </td>
+
+                {/* Status */}
                 <td className="px-4 py-3">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                    user.isActive
-                      ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                  }`}>
-                    {user.isActive ? 'Active' : 'Inactive'}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${user.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    <span className="text-xs text-slate-500">{user.isActive ? 'Active' : 'Inactive'}</span>
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{user._count.documents}</td>
-                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatDate(user.createdAt)}</td>
+
+                {/* Doc count */}
+                <td className="px-4 py-3 text-xs text-slate-500">{user._count.documents}</td>
+
+                {/* Joined */}
+                <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{formatDate(user.createdAt)}</td>
+
+                {/* Actions */}
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {/* Toggle role */}
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleToggleRole(user)}
                       disabled={actionLoading === user.id}
-                      className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="px-2.5 py-1 text-[11px] font-medium rounded border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      {actionLoading === user.id ? '...' : user.role === 'ADMIN' ? 'Demote' : 'Promote'}
+                      {actionLoading === user.id ? '…' : user.role === 'ADMIN' ? 'Demote' : 'Promote'}
                     </button>
-                    {/* Toggle active */}
                     <button
                       onClick={() => handleToggleActive(user)}
                       disabled={actionLoading === user.id + '-active'}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
+                      className={`px-2.5 py-1 text-[11px] font-medium rounded border disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
                         user.isActive
-                          ? 'border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                          : 'border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                          ? 'border-red-200 text-red-600 bg-white hover:bg-red-50'
+                          : 'border-emerald-200 text-emerald-600 bg-white hover:bg-emerald-50'
                       }`}
                     >
-                      {actionLoading === user.id + '-active' ? '...' : user.isActive ? 'Deactivate' : 'Activate'}
+                      {actionLoading === user.id + '-active' ? '…' : user.isActive ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
                 </td>
@@ -160,13 +178,13 @@ export default function AdminUsersPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>{total} accounts · Page {page} of {totalPages}</span>
+          <div className="flex gap-1.5">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
+              className="px-3 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Prev</button>
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+              className="px-3 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Next →</button>
           </div>
         </div>
       )}
