@@ -14,6 +14,9 @@ export class AuthService {
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findOne(email);
     if (user && (await bcrypt.compare(pass, user.password))) {
+      if (!user.isActive) {
+        throw new UnauthorizedException('Account deactivated');
+      }
       const { password, ...result } = user;
       return result;
     }
@@ -21,10 +24,10 @@ export class AuthService {
   }
 
   // 2. Login (Generate JWT)
-  // Include name in the payload so the frontend can display it
+  // Include name and role in the payload so the frontend can use them
   // without an extra API call (decoded from the token client-side)
   async login(user: any) {
-    const payload = { email: user.email, sub: user.id, name: user.name ?? null };
+    const payload = { email: user.email, sub: user.id, name: user.name ?? null, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
     };
