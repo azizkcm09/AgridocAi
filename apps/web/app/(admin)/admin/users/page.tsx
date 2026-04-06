@@ -24,14 +24,19 @@ export default function AdminUsersPage() {
   const [total, setTotal]     = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage]       = useState(1);
+  const [search, setSearch]   = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const fetchUsers = useCallback(async (p: number) => {
+  const fetchUsers = useCallback(async (p: number, s: string) => {
     setLoading(true);
     try {
-      const res = await api.get(`/admin/users?page=${p}&limit=${PAGE_SIZE}`);
+      const params = new URLSearchParams();
+      params.set('page', String(p));
+      params.set('limit', String(PAGE_SIZE));
+      if (s) params.set('search', s);
+      const res = await api.get(`/admin/users?${params.toString()}`);
       setUsers(res.data.data);
       setTotal(res.data.total);
     } finally {
@@ -39,7 +44,7 @@ export default function AdminUsersPage() {
     }
   }, []);
 
-  useEffect(() => { fetchUsers(page); }, [page, fetchUsers]);
+  useEffect(() => { fetchUsers(page, search); }, [page, search, fetchUsers]);
 
   async function handleToggleRole(user: User) {
     setActionLoading(user.id);
@@ -47,7 +52,7 @@ export default function AdminUsersPage() {
       const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
       await api.patch(`/admin/users/${user.id}/role`, { role: newRole });
       addToast(`${user.email} promoted to ${newRole}`, 'success');
-      fetchUsers(page);
+      fetchUsers(page, search);
     } catch {
       addToast('Failed to update role', 'error');
     } finally {
@@ -60,7 +65,7 @@ export default function AdminUsersPage() {
     try {
       await api.patch(`/admin/users/${user.id}/deactivate`);
       addToast(`${user.email} ${user.isActive ? 'deactivated' : 'reactivated'}`, 'success');
-      fetchUsers(page);
+      fetchUsers(page, search);
     } catch {
       addToast('Failed to update status', 'error');
     } finally {
@@ -76,9 +81,23 @@ export default function AdminUsersPage() {
     <div className="space-y-5 max-w-5xl">
 
       {/* Header */}
-      <div>
-        <h1 className="text-lg font-semibold text-slate-800">User Management</h1>
-        <p className="text-sm text-slate-500 mt-0.5">{total} registered accounts on the platform.</p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-800">User Management</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{total} registered accounts on the platform.</p>
+        </div>
+        <div className="relative">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="text-xs border border-slate-200 rounded pl-8 pr-3 py-1.5 bg-white text-slate-700 w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
       </div>
 
       {/* Table */}

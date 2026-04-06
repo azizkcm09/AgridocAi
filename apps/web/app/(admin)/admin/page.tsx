@@ -6,14 +6,25 @@ import api from '@/lib/api';
 import { StatCardSkeleton, TableRowSkeleton } from '@/components/Skeleton';
 
 type Analytics = {
-  users: { total: number; active: number };
+  range: number;
+  users: {
+    total: number;
+    active: number;
+    newThisPeriod: number;
+    trend: number;
+  };
   documents: {
     total: number;
+    thisPeriod: number;
+    trend: number;
     validated: number;
+    validatedThisPeriod: number;
+    validatedTrend: number;
     rejected: number;
     pending: number;
     processing: number;
     error: number;
+    reviewRequired: number;
     validationRate: number;
   };
 };
@@ -44,24 +55,49 @@ const ACTION_COLORS: Record<string, string> = {
   EXPORT:       'bg-slate-100 text-slate-600',
 };
 
+type TrendBadgeProps = { trend: number };
+
+function TrendBadge({ trend }: TrendBadgeProps) {
+  if (trend === 0) return <span className="text-[10px] text-slate-400">No change</span>;
+  const up = trend > 0;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium ${up ? 'text-emerald-600' : 'text-red-500'}`}>
+      {up ? (
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+        </svg>
+      ) : (
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      )}
+      {Math.abs(trend)}%
+    </span>
+  );
+}
+
 type StatCardProps = {
   label: string;
   value: string | number;
   sub?: string;
+  trend?: number;
   accent: string;
   icon: React.ReactNode;
   href?: string;
 };
 
-function StatCard({ label, value, sub, accent, icon, href }: StatCardProps) {
+function StatCard({ label, value, sub, trend, accent, icon, href }: StatCardProps) {
   const inner = (
     <div className="flex items-start justify-between">
-      <div>
+      <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
         <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
-        {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+        <div className="flex items-center gap-2 mt-1">
+          {sub && <p className="text-xs text-slate-400">{sub}</p>}
+          {trend !== undefined && <TrendBadge trend={trend} />}
+        </div>
       </div>
-      <div className="text-slate-300 mt-0.5">{icon}</div>
+      <div className="text-slate-300 mt-0.5 shrink-0">{icon}</div>
     </div>
   );
 
@@ -87,7 +123,7 @@ export default function AdminOverviewPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/admin/analytics'),
+      api.get('/admin/analytics?range=30'),
       api.get('/admin/audit?limit=8'),
     ]).then(([aRes, auditRes]) => {
       setAnalytics(aRes.data);
@@ -105,9 +141,14 @@ export default function AdminOverviewPage() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Page header */}
-      <div>
-        <h1 className="text-lg font-semibold text-slate-800">Platform Overview</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Live snapshot of the entire platform.</p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-800">Platform Overview</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Live snapshot · compared to previous 30-day period.</p>
+        </div>
+        <Link href="/admin/analytics" className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+          Full analytics →
+        </Link>
       </div>
 
       {/* KPI cards */}
@@ -119,7 +160,8 @@ export default function AdminOverviewPage() {
             <StatCard
               label="Registered Users"
               value={analytics.users.total}
-              sub={`${analytics.users.active} currently active`}
+              sub={`${analytics.users.active} active`}
+              trend={analytics.users.trend}
               accent="border-indigo-500"
               href="/admin/users"
               icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
@@ -127,7 +169,8 @@ export default function AdminOverviewPage() {
             <StatCard
               label="Total Documents"
               value={analytics.documents.total}
-              sub={`${analytics.documents.pending} pending review`}
+              sub={`${analytics.documents.pending} pending`}
+              trend={analytics.documents.trend}
               accent="border-slate-400"
               href="/admin/documents"
               icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
@@ -135,7 +178,8 @@ export default function AdminOverviewPage() {
             <StatCard
               label="Validation Rate"
               value={`${analytics.documents.validationRate}%`}
-              sub={`${analytics.documents.validated} documents validated`}
+              sub={`${analytics.documents.validated} validated`}
+              trend={analytics.documents.validatedTrend}
               accent="border-emerald-500"
               icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
             />
@@ -149,6 +193,45 @@ export default function AdminOverviewPage() {
           </>
         ) : null}
       </div>
+
+      {/* Secondary stats row */}
+      {analytics && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg shadow-sm ring-1 ring-slate-900/5 px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-500">Processing</p>
+              <p className="text-xl font-bold text-slate-800 mt-0.5">{analytics.documents.processing}</p>
+            </div>
+            <div className="w-8 h-8 rounded bg-sky-50 flex items-center justify-center">
+              <svg className="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm ring-1 ring-slate-900/5 px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-500">Review Required</p>
+              <p className="text-xl font-bold text-slate-800 mt-0.5">{analytics.documents.reviewRequired}</p>
+            </div>
+            <div className="w-8 h-8 rounded bg-amber-50 flex items-center justify-center">
+              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm ring-1 ring-slate-900/5 px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-500">New Users (30d)</p>
+              <p className="text-xl font-bold text-slate-800 mt-0.5">{analytics.users.newThisPeriod}</p>
+            </div>
+            <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center">
+              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recent activity */}
       <div className="bg-white rounded-lg shadow-sm ring-1 ring-slate-900/5 overflow-hidden">
