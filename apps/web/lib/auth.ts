@@ -41,3 +41,7 @@ export function getUserEmail(): string | null {
 export function getUserName(): string | null {
   return decodePayload()?.name ?? null;
 }
+
+export function getUserRole(): 'USER' | 'ADMIN' | null {
+  return decodePayload()?.role ?? null;
+}

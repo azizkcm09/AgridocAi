@@ -6,7 +6,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import fetcher from '@/lib/fetcher';
 import api from '@/lib/api';
-import { isAuthenticated, clearToken, getUserEmail, getUserName } from '@/lib/auth';
+import { isAuthenticated, clearToken, getUserEmail, getUserName, getUserRole } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 
 // --- Navigation items ---
@@ -132,6 +132,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     setMounted(true);
     if (!isAuthenticated()) {
       router.replace('/login');
+      return;
+    }
+    if (getUserRole() === 'ADMIN') {
+      router.replace('/admin');
       return;
     }
     setEmail(getUserEmail());
