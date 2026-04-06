@@ -9,9 +9,18 @@ export class AdminService {
 
   // ─── USERS ───────────────────────────────────────────────────────────────
 
-  async findAllUsers(page: number, limit: number) {
+  async findAllUsers(page: number, limit: number, search?: string) {
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
+        where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -25,7 +34,7 @@ export class AdminService {
           _count: { select: { documents: true } },
         },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
     return { data, total };
   }
@@ -124,71 +133,105 @@ export class AdminService {
 
   // ─── ANALYTICS ───────────────────────────────────────────────────────────
 
-  async getAnalytics() {
+  async getAnalytics(rangeDays = 30) {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const periodStart = new Date(now);
+    periodStart.setDate(now.getDate() - rangeDays);
+
+    // Previous period for trend comparison (same length, directly before current period)
+    const prevStart = new Date(periodStart);
+    prevStart.setDate(periodStart.getDate() - rangeDays);
 
     const [
       totalUsers,
       activeUsers,
+      newUsersThisPeriod,
+      newUsersPrevPeriod,
       totalDocuments,
+      docsThisPeriod,
+      docsPrevPeriod,
       validatedDocuments,
+      validatedThisPeriod,
+      validatedPrevPeriod,
       rejectedDocuments,
       pendingDocuments,
       processingDocuments,
       errorDocuments,
+      reviewRequiredDocuments,
       byType,
     ] = await Promise.all([
-      // User counts
       this.prisma.user.count(),
       this.prisma.user.count({ where: { isActive: true } }),
+      this.prisma.user.count({ where: { createdAt: { gte: periodStart } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: prevStart, lt: periodStart } } }),
 
-      // Document counts (exclude soft-deleted)
       this.prisma.document.count({ where: { deletedAt: null } }),
+      this.prisma.document.count({ where: { deletedAt: null, createdAt: { gte: periodStart } } }),
+      this.prisma.document.count({ where: { deletedAt: null, createdAt: { gte: prevStart, lt: periodStart } } }),
+
       this.prisma.document.count({ where: { deletedAt: null, status: 'VALIDATED' } }),
+      this.prisma.document.count({ where: { deletedAt: null, status: 'VALIDATED', updatedAt: { gte: periodStart } } }),
+      this.prisma.document.count({ where: { deletedAt: null, status: 'VALIDATED', updatedAt: { gte: prevStart, lt: periodStart } } }),
+
       this.prisma.document.count({ where: { deletedAt: null, status: 'REJECTED' } }),
       this.prisma.document.count({ where: { deletedAt: null, status: 'PENDING' } }),
       this.prisma.document.count({ where: { deletedAt: null, status: 'PROCESSING' } }),
       this.prisma.document.count({ where: { deletedAt: null, status: 'ERROR' } }),
+      this.prisma.document.count({ where: { deletedAt: null, status: 'REVIEW_REQUIRED' } }),
 
-      // Breakdown by type
       this.prisma.document.groupBy({
         by: ['type'],
         where: { deletedAt: null },
         _count: { _all: true },
       }),
-
     ]);
 
-    // Raw query: group by calendar day (DATE trunc) instead of exact timestamp
-    // Prisma groupBy can't truncate datetime fields, so a raw query is required here
+    // Raw SQL: group by calendar day to get daily volume for the current period
     const recentVolume: { date: string; count: bigint }[] = await this.prisma.$queryRaw`
       SELECT DATE("createdAt") AS date, COUNT(*) AS count
       FROM "Document"
       WHERE "deletedAt" IS NULL
-        AND "createdAt" >= ${thirtyDaysAgo}
+        AND "createdAt" >= ${periodStart}
       GROUP BY DATE("createdAt")
       ORDER BY DATE("createdAt") ASC
     `;
+
+    function computeTrend(current: number, previous: number): number {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    }
 
     const validationRate =
       totalDocuments > 0 ? Math.round((validatedDocuments / totalDocuments) * 100) : 0;
 
     return {
-      users: { total: totalUsers, active: activeUsers },
+      range: rangeDays,
+      users: {
+        total: totalUsers,
+        active: activeUsers,
+        newThisPeriod: newUsersThisPeriod,
+        trend: computeTrend(newUsersThisPeriod, newUsersPrevPeriod),
+      },
       documents: {
         total: totalDocuments,
+        thisPeriod: docsThisPeriod,
+        trend: computeTrend(docsThisPeriod, docsPrevPeriod),
         validated: validatedDocuments,
+        validatedThisPeriod,
+        validatedTrend: computeTrend(validatedThisPeriod, validatedPrevPeriod),
         rejected: rejectedDocuments,
         pending: pendingDocuments,
         processing: processingDocuments,
         error: errorDocuments,
+        reviewRequired: reviewRequiredDocuments,
         validationRate,
       },
       byType: byType.map((b) => ({ type: b.type, count: b._count._all })),
       recentVolume: recentVolume.map((v) => ({
-        date: v.date,
+        date: (v.date instanceof Date ? v.date : new Date(String(v.date)))
+          .toISOString()
+          .split('T')[0],
         count: Number(v.count),
       })),
     };

@@ -23,10 +23,12 @@ export class AdminController {
   findAllUsers(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ) {
     return this.adminService.findAllUsers(
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 10,
+      search,
     );
   }
 
@@ -87,7 +89,7 @@ export class AdminController {
 
   @Get('analytics')
   @ApiOperation({ summary: 'Platform-wide analytics (admin)' })
-  getAnalytics() {
-    return this.adminService.getAnalytics();
+  getAnalytics(@Query('range') range?: string) {
+    return this.adminService.getAnalytics(range ? parseInt(range) : 30);
   }
 }
