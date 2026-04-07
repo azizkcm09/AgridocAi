@@ -34,7 +34,7 @@ export class UsersController {
   @Patch('profile')
   @ApiOperation({ summary: 'Update profile (name)' })
   updateProfile(@Body() dto: UpdateProfileDto, @Req() req: any) {
-    return this.usersService.updateProfile(req.user.userId, dto);
+    return this.usersService.updateProfile(req.user.userId, { name: dto.name });
   }
 
   // POST /users/avatar — get a presigned upload URL for the avatar image

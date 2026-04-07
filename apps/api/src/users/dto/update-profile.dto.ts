@@ -1,10 +1,12 @@
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, MinLength } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({ example: 'John Doe', description: 'Display name' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  @Matches(/^[^<>]*$/, { message: 'Name must not contain HTML tags' })
   name?: string;
 }
 
