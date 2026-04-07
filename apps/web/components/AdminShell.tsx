@@ -93,8 +93,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
         {/* Brand */}
         <div className="px-5 pt-6 pb-5 border-b border-slate-800">
-          <p className="text-white font-semibold text-sm tracking-wide">AgriDoc</p>
-          <p className="text-slate-500 text-xs mt-0.5 uppercase tracking-widest">Administration</p>
+          <img src="/full-logo.png" alt="AgriDoc" className="h-7" />
+          <p className="text-slate-500 text-xs mt-1.5 uppercase tracking-widest">Administration</p>
         </div>
 
         {/* Nav */}

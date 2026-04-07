@@ -46,12 +46,7 @@ export default function RegisterPage() {
     <div className="w-full max-w-sm mx-auto">
 
       <div className="flex justify-center mb-8">
-        <div className="w-11 h-11 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-        </div>
+        <img src="/logo.png" alt="AgriDoc" className="w-11 h-11" />
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-8">

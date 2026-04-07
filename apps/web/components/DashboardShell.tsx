@@ -155,14 +155,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <aside className="w-60 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col">
 
         {/* Brand */}
-        <div className="h-14 flex items-center gap-2.5 px-5 border-b border-slate-100 dark:border-slate-800">
-          <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center shrink-0">
-            <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-          </div>
-          <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">AgriDoc</span>
+        <div className="h-14 flex items-center px-5 border-b border-slate-100 dark:border-slate-800">
+          <img src="/full-logo.png" alt="AgriDoc" className="h-8" />
         </div>
 
         {/* Nav sections */}

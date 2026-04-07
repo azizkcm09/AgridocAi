@@ -32,14 +32,8 @@ function AuthLayoutInner({ children }: { children: React.ReactNode }) {
       <div className="relative w-full lg:w-2/5 flex flex-col bg-slate-50 dark:bg-slate-950">
         <ThemeToggle />
 
-        <div className="lg:hidden flex items-center gap-2.5 px-6 pt-8 pb-4">
-          <div className="w-8 h-8 rounded-md bg-indigo-600 flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-          </div>
-          <span className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight">AgriDoc</span>
+        <div className="lg:hidden flex items-center px-6 pt-8 pb-4">
+          <img src="/full-logo.png" alt="AgriDoc" className="h-9" />
         </div>
 
         <div className="flex-1 flex items-center justify-center px-6 py-8">
