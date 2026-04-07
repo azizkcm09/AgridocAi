@@ -1,14 +1,18 @@
-import { Controller, Get, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Req, NotFoundException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuditService } from './audit.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('Audit')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
 @Controller('audit')
 export class AuditController {
-  constructor(private readonly auditService: AuditService) {}
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // --- GET /audit — paginated list for the Audit Logs page ---
   @Get()
@@ -38,6 +42,8 @@ export class AuditController {
   @Get('document/:documentId')
   @ApiOperation({ summary: 'Get history for a specific document' })
   async getDocumentHistory(@Param('documentId') documentId: string) {
+    const doc = await this.prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc) throw new NotFoundException('Document not found');
     return this.auditService.getDocumentHistory(documentId);
   }
 }

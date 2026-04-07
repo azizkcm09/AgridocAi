@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -46,7 +46,10 @@ export class AdminController {
 
   @Patch('users/:id/deactivate')
   @ApiOperation({ summary: 'Toggle user active/inactive (admin)' })
-  toggleActive(@Param('id') id: string) {
+  toggleActive(@Param('id') id: string, @Req() req: any) {
+    if (req.user.userId === id) {
+      throw new BadRequestException('Cannot deactivate your own account');
+    }
     return this.adminService.toggleActive(id);
   }
 
@@ -90,6 +93,7 @@ export class AdminController {
   @Get('analytics')
   @ApiOperation({ summary: 'Platform-wide analytics (admin)' })
   getAnalytics(@Query('range') range?: string) {
-    return this.adminService.getAnalytics(range ? parseInt(range) : 30);
+    const days = range ? parseInt(range) : 30;
+    return this.adminService.getAnalytics(Math.min(Math.max(days, 1), 365));
   }
 }

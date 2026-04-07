@@ -1,11 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { PrismaService } from './prisma/prisma.service';
+import { CacheService } from './cache/cache.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   @Get('health')
+  @SkipThrottle()
   async health() {
     const services: Record<string, string> = {};
 
@@ -15,6 +21,14 @@ export class AppController {
       services.database = 'connected';
     } catch {
       services.database = 'disconnected';
+    }
+
+    // Check Redis
+    try {
+      await this.cache.set('health-check', 'ok', 5);
+      services.redis = 'connected';
+    } catch {
+      services.redis = 'disconnected';
     }
 
     // Check AI service
