@@ -1,12 +1,14 @@
-import { 
-  Body, 
-  Controller, 
-  Post, 
-  HttpCode, 
-  HttpStatus, 
-  UseGuards, 
-  Get, 
-  Request 
+import {
+  Body,
+  Controller,
+  Post,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Get,
+  Request,
+  UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -41,7 +43,7 @@ export class AuthController {
       loginDto.password,
     );
     if (!user) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedException('Invalid email or password');
     }
     return this.authService.login(user);
   }
@@ -50,11 +52,19 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register User', description: 'Create a new user account.' })
   @ApiResponse({ status: 201, description: 'User successfully created.' })
+  @ApiResponse({ status: 409, description: 'Email already exists.' })
   async register(@Body() loginDto: LoginDto) {
-    return this.authService.register(
-      loginDto.email,
-      loginDto.password,
-    );
+    try {
+      return await this.authService.register(
+        loginDto.email,
+        loginDto.password,
+      );
+    } catch (error) {
+      if (error?.code === 'P2002') {
+        throw new ConflictException('Email already exists');
+      }
+      throw error;
+    }
   }
 
   // --- PROFILE (PROTECTED) ---

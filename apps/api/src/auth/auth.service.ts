@@ -36,16 +36,19 @@ export class AuthService {
 // 3. Register (Hash password & Create User)
   async register(email: string, pass: string) {
     const hashedPassword = await bcrypt.hash(pass, 10);
-    
+
     // Create the user
     const user = await this.usersService.create({
       email,
       password: hashedPassword,
     });
 
-  
-    // Remove password from response
-    const { password, ...result } = user;
-    return result;
+    // Return only safe fields
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+    };
   }
 }
