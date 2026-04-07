@@ -7,9 +7,11 @@ import {
   Body,
   Param,
   Query,
+  Headers,
   UseGuards,
   Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -123,24 +125,32 @@ export class DocumentsController {
   }
 
   // --- 4. CALLBACK: Receive AI extraction results (service-to-service) ---
-  @Public() // This endpoint is called by the AI service, so it must be public (no JWT required)
+  @Public()
   @Post(':id/extraction-callback')
-
   @ApiOperation({ summary: 'Callback from AI service with extraction results' })
   handleExtractionCallback(
     @Param('id') id: string,
     @Body() dto: ExtractionCallbackDto,
+    @Headers('x-api-key') apiKey: string,
   ) {
+    if (apiKey !== process.env.AI_CALLBACK_SECRET) {
+      throw new UnauthorizedException('Invalid API key');
+    }
     return this.documentsService.handleExtractionCallback(id, dto);
   }
-    // --- 5. ERROR CALLBACK: AI service reports processing failure ---
+
+  // --- 5. ERROR CALLBACK: AI service reports processing failure ---
   @Public()
   @Post(':id/extraction-error')
   @ApiOperation({ summary: 'Error callback from AI service' })
   handleExtractionError(
     @Param('id') id: string,
     @Body() body: { error: string },
+    @Headers('x-api-key') apiKey: string,
   ) {
+    if (apiKey !== process.env.AI_CALLBACK_SECRET) {
+      throw new UnauthorizedException('Invalid API key');
+    }
     return this.documentsService.handleExtractionError(id, body.error);
   }
 
