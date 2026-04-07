@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -22,11 +24,18 @@ import { CacheModule } from './cache/cache.module';
     AdminModule,
     BullModule.forRoot({
       connection: {
-        host: 'localhost',
-        port: 6379,
+        host: process.env.REDIS_HOST ?? 'localhost',
+        port: Number(process.env.REDIS_PORT ?? 6379),
       },
     }),
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 5 },   // 5 requests per second
+      { name: 'medium', ttl: 60000, limit: 60 }, // 60 requests per minute
+    ]),
   ],
   controllers: [AppController],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
