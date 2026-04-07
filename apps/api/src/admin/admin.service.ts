@@ -229,7 +229,7 @@ export class AdminService {
       },
       byType: byType.map((b) => ({ type: b.type, count: b._count._all })),
       recentVolume: recentVolume.map((v) => ({
-        date: (v.date instanceof Date ? v.date : new Date(String(v.date)))
+        date: new Date(String(v.date))
           .toISOString()
           .split('T')[0],
         count: Number(v.count),
