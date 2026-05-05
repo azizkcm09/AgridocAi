@@ -33,6 +33,16 @@ const NAV_ITEMS = [
           </svg>
         ),
       },
+      {
+        label: 'Upload',
+        href: '/upload',
+        icon: (
+          <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+              d="M7 16a4 4 0 01-.88-7.9A5 5 0 0117.9 8a4.5 4.5 0 01-.4 8.94M12 12v9m0 0l-3-3m3 3l3-3" />
+          </svg>
+        ),
+      },
     ],
   },
   {
