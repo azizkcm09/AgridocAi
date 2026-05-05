@@ -152,6 +152,14 @@ export default function DocumentDetailPage() {
 
   useEffect(() => { loadDocument(); }, [loadDocument]);
 
+  // Poll while the document is still being processed so the page swaps to
+  // the review form as soon as the AI callback lands — no manual refresh.
+  useEffect(() => {
+    if (doc?.status !== 'PENDING' && doc?.status !== 'PROCESSING') return;
+    const t = setInterval(() => { loadDocument(); }, 3000);
+    return () => clearInterval(t);
+  }, [doc?.status, loadDocument]);
+
   // Validate & Save
   async function onValidate(formData: Record<string, any>) {
     setSaving(true);
