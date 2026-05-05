@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query, UseGuards, Req, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Req, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { Role } from '../auth/roles.enum';
 
 @ApiTags('Audit')
 @ApiBearerAuth()
@@ -41,9 +42,12 @@ export class AuditController {
   // --- GET /audit/document/:documentId — full history for one document ---
   @Get('document/:documentId')
   @ApiOperation({ summary: 'Get history for a specific document' })
-  async getDocumentHistory(@Param('documentId') documentId: string) {
+  async getDocumentHistory(@Param('documentId') documentId: string, @Req() req: any) {
     const doc = await this.prisma.document.findUnique({ where: { id: documentId } });
     if (!doc) throw new NotFoundException('Document not found');
+    if (doc.userId !== req.user.userId && req.user.role !== Role.ADMIN) {
+      throw new ForbiddenException('You do not have access to this document');
+    }
     return this.auditService.getDocumentHistory(documentId);
   }
 }
