@@ -23,9 +23,9 @@ export class StorageService {
       forcePathStyle: true,
     });
   }
-async getPresignedUploadUrl(fileName: string, contentType: string) {
-    // 1. Create a unique file name to prevent overwriting
-    const uniqueFileName = `documents/${Date.now()}-${fileName}`;
+async getPresignedUploadUrl(fileName: string, contentType: string, prefix = 'documents') {
+    // 1. Create a unique file name under the requested prefix
+    const uniqueFileName = `${prefix}/${Date.now()}-${fileName}`;
 
     // 2. Define the command for S3
     const command = new PutObjectCommand({

@@ -42,8 +42,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Get presigned URL for avatar upload' })
   getAvatarUploadUrl(@Body() body: { fileName: string; contentType: string }, @Req() req: any) {
     return this.storageService.getPresignedUploadUrl(
-      `avatars/${req.user.userId}-${body.fileName}`,
+      `${req.user.userId}-${body.fileName}`,
       body.contentType,
+      'avatars',
     );
   }
 
