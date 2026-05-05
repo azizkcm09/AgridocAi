@@ -43,6 +43,7 @@ def _process_and_callback(storage_path: str, document_type: str, callback_url: s
     5. POST the results back to NestJS via callbackUrl
     """
     local_path = None
+    callback_headers = {"x-api-key": os.getenv("AI_CALLBACK_SECRET", "")}
 
     try:
         logger.info(f"[1/5] Downloading: {storage_path}")
@@ -71,6 +72,7 @@ def _process_and_callback(storage_path: str, document_type: str, callback_url: s
                 "confidence": confidence,
                 "rawText": raw_text,
             },
+            headers=callback_headers,
             timeout=15.0,
         )
         response.raise_for_status()
@@ -81,7 +83,7 @@ def _process_and_callback(storage_path: str, document_type: str, callback_url: s
         # Notify NestJS that processing failed so the doc doesn't stay stuck in PROCESSING
         try:
             error_url = callback_url.replace("/extraction-callback", "/extraction-error")
-            httpx.post(error_url, json={"error": str(e)}, timeout=10.0)
+            httpx.post(error_url, json={"error": str(e)}, headers=callback_headers, timeout=10.0)
         except Exception as cb_err:
             logger.error(f"Error callback also failed: {cb_err}")
 
