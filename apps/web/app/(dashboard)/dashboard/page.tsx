@@ -1,13 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
-import api from '@/lib/api';
 import fetcher from '@/lib/fetcher';
-import axios from 'axios';
-import { useToast } from '@/lib/toast-context';
 import DocumentsOverTimeChart from '@/components/charts/DocumentsOverTimeChart';
 import DocumentsByTypeChart from '@/components/charts/DocumentsByTypeChart';
 import DocumentsByStatusChart from '@/components/charts/DocumentsByStatusChart';
@@ -40,13 +36,6 @@ type AuditLog = {
   document: { originalName: string } | null;
 };
 
-const DOC_TYPES = [
-  { label: 'Invoice',     value: 'INVOICE' },
-  { label: 'Certificate', value: 'CERTIFICATE' },
-  { label: 'Report',      value: 'REPORT' },
-  { label: 'Unknown',     value: 'UNKNOWN' },
-];
-
 function WowIndicator({ current, previous }: { current: number; previous: number }) {
   if (previous === 0 && current === 0) return null;
   const pct = previous === 0 ? 100 : Math.round(((current - previous) / previous) * 100);
@@ -73,73 +62,11 @@ function formatSeconds(sec: number) {
 export default function DashboardPage() {
   const router = useRouter();
 
-  const { addToast } = useToast();
-  const { data: analytics, isLoading: analyticsLoading, mutate: mutateAnalytics } = useSWR<Analytics>('/documents/analytics', fetcher);
+  const { data: analytics, isLoading: analyticsLoading } = useSWR<Analytics>('/documents/analytics', fetcher);
   const { data: auditLogs, isLoading: logsLoading } = useSWR<AuditLog[]>('/audit/recent', fetcher);
-
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploading, setUploading]   = useState(false);
-  const [uploadMsg, setUploadMsg]   = useState<string | null>(null);
-  const [docType, setDocType]       = useState('INVOICE');
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const fileInputRef                = useRef<HTMLInputElement>(null);
 
   const loading = analyticsLoading || logsLoading;
   const kpis = analytics?.kpis;
-
-  async function handleUpload(file: File) {
-    setUploading(true);
-    setUploadMsg('Requesting upload URL...');
-    try {
-      const urlRes = await api.post('/storage/presigned-url', {
-        fileName: file.name,
-        contentType: file.type,
-      });
-      const { uploadUrl, key } = urlRes.data;
-
-      setUploadMsg('Uploading file...');
-      await axios.put(uploadUrl, file, {
-        headers: { 'Content-Type': file.type },
-      });
-
-      setUploadMsg('Queuing for AI extraction...');
-      await api.post('/documents', {
-        originalName: file.name,
-        storagePath: key,
-        mimeType: file.type,
-        size: file.size,
-        type: docType,
-      });
-
-      addToast('Document uploaded and queued for AI extraction.', 'success');
-      setUploadMsg(null);
-      setPendingFile(null);
-      await mutateAnalytics();
-    } catch {
-      addToast('Upload failed. Please try again.', 'error');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  function onDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) setPendingFile(file);
-  }
-
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) setPendingFile(file);
-    if (e.target) e.target.value = '';
-  }
-
-  function formatBytes(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
 
   function formatTimeAgo(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -243,91 +170,28 @@ export default function DashboardPage() {
         <ConfidenceDistributionChart data={analytics?.confidenceDistribution ?? []} />
       )}
 
-      {/* Bottom: Upload zone + Audit logs */}
+      {/* Bottom: Upload CTA + Audit logs */}
       <div className="grid grid-cols-5 gap-4">
 
-        {/* Upload zone - 3/5 width */}
-        <div className="col-span-5 lg:col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
-
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Upload Document</p>
-            <select
-              value={docType}
-              onChange={(e) => setDocType(e.target.value)}
-              className="text-sm border-slate-200 dark:border-slate-700 rounded-md border px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {DOC_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+        {/* Upload CTA - 3/5 width */}
+        <Link
+          href="/upload"
+          className="col-span-5 lg:col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-6 hover:ring-indigo-300 dark:hover:ring-indigo-700 hover:shadow-md transition-all flex items-center gap-5"
+        >
+          <div className="w-12 h-12 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+                d="M7 16a4 4 0 01-.88-7.9A5 5 0 0117.9 8a4.5 4.5 0 01-.4 8.94M12 12v9m0 0l-3-3m3 3l3-3" />
+            </svg>
           </div>
-
-          <div
-            onDragOver={(e) => { e.preventDefault(); if (!pendingFile) setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={onDrop}
-            onClick={() => !uploading && !pendingFile && fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center py-14 transition-colors ${
-              pendingFile
-                ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
-                : isDragging
-                  ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 cursor-pointer'
-                  : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer'
-            }`}
-          >
-            {pendingFile ? (
-              <>
-                <svg className="w-10 h-10 text-indigo-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{pendingFile.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{formatBytes(pendingFile.size)} &middot; {pendingFile.type || 'unknown type'}</p>
-              </>
-            ) : (
-              <>
-                <svg className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                </svg>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  {uploading ? 'Uploading...' : 'Drop invoice or certificate here to process.'}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">or click to select files</p>
-              </>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/tiff,application/pdf"
-              className="hidden"
-              onChange={onFileChange}
-            />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Upload a document</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Send invoices, certificates, or reports through OCR + AI extraction.</p>
           </div>
-
-          {pendingFile && !uploading && (
-            <div className="flex gap-3 mt-3">
-              <button
-                onClick={() => { setPendingFile(null); setUploadMsg(null); }}
-                className="flex-1 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleUpload(pendingFile)}
-                className="flex-1 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors"
-              >
-                Proceed
-              </button>
-            </div>
-          )}
-
-          {uploadMsg && (
-            <p className={`mt-3 text-sm text-center ${uploadMsg.startsWith('Document uploaded') ? 'text-emerald-600' : uploadMsg.startsWith('Upload failed') ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>
-              {uploadMsg}
-            </p>
-          )}
-        </div>
+          <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
 
         {/* Audit logs - 2/5 width */}
         <div className="col-span-5 lg:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
