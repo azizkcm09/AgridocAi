@@ -6,12 +6,10 @@ import api from '@/lib/api';
 import axios from 'axios';
 import { useToast } from '@/lib/toast-context';
 
-const DOC_TYPES = [
-  { label: 'Invoice',     value: 'INVOICE' },
-  { label: 'Certificate', value: 'CERTIFICATE' },
-  { label: 'Report',      value: 'REPORT' },
-  { label: 'Unknown',     value: 'UNKNOWN' },
-];
+// Document type is no longer chosen by the user — the AI service classifies
+// every upload automatically and the user can override the result from the
+// document detail page if the classifier guesses wrong.
+const DETECTABLE_TYPES = ['Invoice', 'Certificate', 'Report', 'Other'];
 
 const ACCEPTED_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
 const ACCEPT_ATTR   = 'image/png,image/jpeg,application/pdf';
@@ -43,7 +41,6 @@ export default function UploadPage() {
   const router = useRouter();
   const { addToast } = useToast();
 
-  const [docType, setDocType]         = useState('INVOICE');
   const [isDragging, setIsDragging]   = useState(false);
   const [pending, setPending]         = useState<PendingFile[]>([]);
   const [submitting, setSubmitting]   = useState(false);
@@ -106,13 +103,15 @@ export default function UploadPage() {
       setStatus('uploading', 'Uploading file...');
       await axios.put(uploadUrl, file, { headers: { 'Content-Type': file.type } });
 
-      setStatus('uploading', 'Queuing for AI extraction...');
+      setStatus('uploading', 'Queuing for AI classification + extraction...');
+      // Always send UNKNOWN — the AI service runs its classifier on the
+      // first page and the API records the detected type on callback.
       await api.post('/documents', {
         originalName: file.name,
         storagePath: key,
         mimeType: file.type,
         size: file.size,
-        type: docType,
+        type: 'UNKNOWN',
       });
 
       setStatus('success', 'Queued');
@@ -153,26 +152,44 @@ export default function UploadPage() {
 
       {/* Page title */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Upload Documents</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Drop one or more files to send them through OCR + AI extraction.
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-[color:var(--foreground)] tracking-tight">
+          Upload Documents
+        </h1>
+        <p className="text-sm text-[color:var(--foreground-muted)] mt-1">
+          Drop one or more files. OCR runs first, the AI classifies the document, then extracts its fields.
         </p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-6 space-y-5">
 
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Document Type</label>
-          <select
-            value={docType}
-            onChange={(e) => setDocType(e.target.value)}
-            disabled={submitting}
-            className="text-sm border border-slate-200 dark:border-slate-700 rounded-md px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+        <div className="flex items-start gap-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 px-4 py-3">
+          <svg
+            className="w-5 h-5 mt-0.5 text-slate-500 dark:text-slate-400 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
           >
-            {DOC_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6}
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 14a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <div className="flex-1 text-sm leading-relaxed">
+            <p className="font-medium text-slate-700 dark:text-slate-200">
+              The AI will detect the document type automatically.
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Supported categories:{' '}
+              {DETECTABLE_TYPES.map((t, i) => (
+                <span key={t}>
+                  <span className="inline-flex items-center rounded-full bg-white dark:bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700">
+                    {t}
+                  </span>
+                  {i < DETECTABLE_TYPES.length - 1 && <span className="mx-1 text-slate-300">·</span>}
+                </span>
+              ))}
+              . You can correct the detected type from the document page after review.
+            </p>
+          </div>
         </div>
 
         <div
@@ -180,10 +197,10 @@ export default function UploadPage() {
           onDragLeave={() => setIsDragging(false)}
           onDrop={onDrop}
           onClick={() => !submitting && fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center py-16 transition-colors cursor-pointer ${
+          className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center transition-colors cursor-pointer ${
             isDragging
-              ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
-              : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'
+              ? 'border-[color:var(--brand)] bg-[color:var(--brand-soft)]'
+              : 'border-[color:var(--border-strong)] hover:border-[color:var(--brand)] hover:bg-[color:var(--surface-muted)]'
           } ${submitting ? 'opacity-60 pointer-events-none' : ''}`}
         >
           <svg className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,7 +299,7 @@ export default function UploadPage() {
           <button
             onClick={handleSubmit}
             disabled={submitting || queueCount === 0}
-            className="flex-1 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 py-2 bg-[color:var(--brand)] text-[color:var(--brand-contrast)] text-sm font-medium rounded-md hover:bg-[color:var(--brand-strong)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? 'Uploading...' : queueCount > 0 ? `Upload ${queueCount} document${queueCount > 1 ? 's' : ''}` : 'Upload'}
           </button>

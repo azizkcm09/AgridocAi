@@ -9,6 +9,8 @@ import { useToast } from '@/lib/toast-context';
 import Modal from '@/components/Modal';
 import { TableRowSkeleton } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
+import ErrorState from '@/components/ErrorState';
+import StatusBadge from '@/components/StatusBadge';
 
 type Document = {
   id: string;
@@ -16,16 +18,19 @@ type Document = {
   type: string;
   status: string;
   createdAt: string;
+  detectedType?: string | null;
+  classificationConfidence?: number | null;
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING:          'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-  PROCESSING:       'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-  REVIEW_REQUIRED:  'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-  VALIDATED:        'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
-  REJECTED:         'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
-  ERROR:            'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 font-semibold',
-};
+// Color buckets shown next to the AI-detected document type. Mirrors the
+// thresholds used on the document detail page so the visual language is
+// consistent between the list and the detail.
+function confidenceBucket(value: number | null | undefined) {
+  if (value === null || value === undefined) return null;
+  if (value >= 85) return { tone: 'high', label: `${Math.round(value)}%`, cls: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' };
+  if (value >= 60) return { tone: 'mid',  label: `${Math.round(value)}%`, cls: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' };
+  return { tone: 'low', label: `${Math.round(value)}%`, cls: 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' };
+}
 
 const PAGE_SIZE = 8;
 
@@ -55,6 +60,13 @@ export default function DocumentsPage() {
   const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Each batch action that has lasting consequences (reject / delete) goes
+  // through a confirmation modal. The non-destructive ones (validate / export)
+  // run immediately because they can be undone or are read-only.
+  type BatchAction = 'reject' | 'delete';
+  const [batchConfirm, setBatchConfirm] = useState<BatchAction | null>(null);
+  const [batchReason, setBatchReason] = useState('');
+
   // ── Batch selection state ──
   //   - Cleaner add/delete API
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -65,7 +77,7 @@ export default function DocumentsPage() {
   // Poll every 3s while any row is still PENDING/PROCESSING so the user sees
   // status flip to REVIEW_REQUIRED without a manual refresh.
   const swrKey = buildKey(page, search, typeFilter, statusFilter);
-  const { data, isLoading, mutate } = useSWR<{ data: Document[]; total: number }>(swrKey, fetcher, {
+  const { data, isLoading, error, mutate } = useSWR<{ data: Document[]; total: number }>(swrKey, fetcher, {
     refreshInterval: (latest) => {
       const rows = latest?.data ?? [];
       const inFlight = rows.some((d) => d.status === 'PENDING' || d.status === 'PROCESSING');
@@ -173,12 +185,17 @@ export default function DocumentsPage() {
     }
   }
 
-  async function handleBatchReject() {
+  async function performBatchReject(reason: string) {
     setBatchLoading(true);
     try {
       const ids = Array.from(selectedIds);
-      const res = await api.post('/documents/batch/reject', { documentIds: ids });
+      const res = await api.post('/documents/batch/reject', {
+        documentIds: ids,
+        reason: reason || undefined,
+      });
       setSelectedIds(new Set());
+      setBatchConfirm(null);
+      setBatchReason('');
       mutate();
       addToast(`${res.data.rejected} document(s) rejected.`, 'success');
     } catch {
@@ -188,12 +205,13 @@ export default function DocumentsPage() {
     }
   }
 
-  async function handleBatchDelete() {
+  async function performBatchDelete() {
     setBatchLoading(true);
     try {
       const ids = Array.from(selectedIds);
       const res = await api.post('/documents/batch/delete', { documentIds: ids });
       setSelectedIds(new Set());
+      setBatchConfirm(null);
       mutate();
       addToast(`${res.data.deleted} document(s) deleted.`, 'success');
     } catch {
@@ -243,12 +261,12 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-4">
 
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Documents</h1>
+      <h1 className="font-display text-2xl sm:text-3xl font-semibold text-[color:var(--foreground)]">Documents</h1>
 
       {/* -- FILTERS -- */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
 
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 sm:max-w-md">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -315,7 +333,7 @@ export default function DocumentsPage() {
             Validate All
           </button>
           <button
-            onClick={handleBatchReject}
+            onClick={() => { setBatchReason(''); setBatchConfirm('reject'); }}
             disabled={batchLoading}
             className="text-sm font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 disabled:opacity-50 transition-colors"
           >
@@ -329,7 +347,7 @@ export default function DocumentsPage() {
             Export All
           </button>
           <button
-            onClick={handleBatchDelete}
+            onClick={() => setBatchConfirm('delete')}
             disabled={batchLoading}
             className="text-sm font-medium text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 disabled:opacity-50 transition-colors"
           >
@@ -349,8 +367,77 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      {/* -- TABLE -- */}
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 overflow-visible">
+      {/* -- CARD LIST (below md) -- */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-slate-900 rounded-lg ring-1 ring-slate-900/5 dark:ring-slate-800 p-4 animate-pulse">
+              <div className="h-4 bg-slate-200/60 dark:bg-slate-700/50 rounded w-2/3 mb-3" />
+              <div className="h-3 bg-slate-200/60 dark:bg-slate-700/50 rounded w-1/3" />
+            </div>
+          ))
+        ) : error ? (
+          <div className="bg-white dark:bg-slate-900 rounded-lg ring-1 ring-slate-900/5 dark:ring-slate-800">
+            <ErrorState
+              title="Could not load documents"
+              description="The server is unreachable or returned an error."
+              onRetry={() => mutate()}
+            />
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-lg ring-1 ring-slate-900/5 dark:ring-slate-800">
+            <EmptyState
+              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+              title="No documents yet"
+              description="Upload your first document to get started."
+              action={{ label: 'Upload Document', onClick: () => router.push('/upload') }}
+            />
+          </div>
+        ) : (
+          documents.map((doc) => {
+            const bucket = confidenceBucket(doc.classificationConfidence);
+            const isSelected = selectedIds.has(doc.id);
+            return (
+              <div
+                key={doc.id}
+                className="bg-white dark:bg-slate-900 rounded-lg ring-1 ring-slate-900/5 dark:ring-slate-800 p-4 flex gap-3 active:bg-slate-50 dark:active:bg-slate-800 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleOne(doc.id)}
+                  className="mt-1 rounded border-slate-300 dark:border-slate-600 text-[color:var(--brand)] focus:ring-[color:var(--brand)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => router.push(`/documents/${doc.id}`)}
+                  className="flex-1 text-left min-w-0"
+                >
+                  <p className="text-sm font-medium text-[color:var(--foreground)] truncate">
+                    {doc.originalName}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--foreground-muted)]">
+                    <span className="capitalize">{doc.type.charAt(0) + doc.type.slice(1).toLowerCase()}</span>
+                    {bucket && (
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${bucket.cls}`}>
+                        {bucket.label}
+                      </span>
+                    )}
+                    <span>·</span>
+                    <span>{formatDate(doc.createdAt)}</span>
+                  </div>
+                  <div className="mt-2">
+                    <StatusBadge status={doc.status} />
+                  </div>
+                </button>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* -- TABLE (md and up) -- */}
+      <div className="hidden md:block bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 overflow-visible">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 dark:bg-slate-800/50">
             <tr className="border-b border-slate-100 dark:border-slate-800 text-left">
@@ -375,11 +462,21 @@ export default function DocumentsPage() {
           <tbody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
+            ) : error ? (
+              <tr>
+                <td colSpan={6}>
+                  <ErrorState
+                    title="Could not load documents"
+                    description="The server is unreachable or returned an error. You can retry without losing your filters."
+                    onRetry={() => mutate()}
+                  />
+                </td>
+              </tr>
             ) : documents.length === 0 ? (
               <tr>
                 <td colSpan={6}>
                   <EmptyState
-                    icon={<svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                    icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
                     title="No documents yet"
                     description="Upload your first document to get started."
                     action={{ label: 'Upload Document', onClick: () => router.push('/upload') }}
@@ -409,16 +506,30 @@ export default function DocumentsPage() {
                   <td className="px-4 py-3 text-indigo-600 dark:text-indigo-400 font-medium max-w-xs truncate">
                     {doc.originalName}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 capitalize">
-                    {doc.type.charAt(0) + doc.type.slice(1).toLowerCase()}
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="capitalize">
+                        {doc.type.charAt(0) + doc.type.slice(1).toLowerCase()}
+                      </span>
+                      {(() => {
+                        const bucket = confidenceBucket(doc.classificationConfidence);
+                        if (!bucket) return null;
+                        return (
+                          <span
+                            title={`AI classification confidence: ${bucket.label}`}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${bucket.cls}`}
+                          >
+                            {bucket.label}
+                          </span>
+                        );
+                      })()}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                     {formatDate(doc.createdAt)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2.5 py-1 rounded-md text-xs ${STATUS_COLORS[doc.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                      {doc.status.charAt(0) + doc.status.slice(1).toLowerCase().replace(/_/g, ' ')}
-                    </span>
+                    <StatusBadge status={doc.status} />
                   </td>
                   <td className="px-4 py-3 relative" onClick={(e) => e.stopPropagation()}>
                     <button
@@ -470,6 +581,55 @@ export default function DocumentsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Batch destructive-action confirmation */}
+      <Modal
+        open={batchConfirm !== null}
+        onClose={() => { setBatchConfirm(null); setBatchReason(''); }}
+        title={batchConfirm === 'reject' ? 'Reject Documents' : 'Delete Documents'}
+      >
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+          {batchConfirm === 'reject'
+            ? `Reject ${selectedIds.size} document(s)?`
+            : `Permanently remove ${selectedIds.size} document(s) from your list?`}
+        </p>
+        <p className="text-xs text-slate-400 mb-4">
+          {batchConfirm === 'reject'
+            ? 'Only documents in REVIEW REQUIRED status will be affected. Validated or already-rejected docs are skipped.'
+            : 'The documents are soft-deleted — they disappear from your list but audit logs are kept.'}
+        </p>
+        {batchConfirm === 'reject' && (
+          <textarea
+            value={batchReason}
+            onChange={(e) => setBatchReason(e.target.value)}
+            placeholder="Reason (optional, recorded in audit trail)"
+            className="field-input resize-none h-20 mb-4"
+          />
+        )}
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setBatchConfirm(null); setBatchReason(''); }}
+            disabled={batchLoading}
+            className="flex-1 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (batchConfirm === 'reject') performBatchReject(batchReason);
+              else performBatchDelete();
+            }}
+            disabled={batchLoading}
+            className={`flex-1 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors ${
+              batchConfirm === 'reject'
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : 'bg-rose-600 hover:bg-rose-700'
+            }`}
+          >
+            {batchLoading ? 'Working…' : batchConfirm === 'reject' ? 'Reject all' : 'Delete all'}
+          </button>
+        </div>
+      </Modal>
 
       {/* Delete confirmation modal */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Document">

@@ -95,8 +95,12 @@ export default function DashboardPage() {
 
       {/* Page title */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Welcome back.</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Here&apos;s what&apos;s happening with your documents.</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-[color:var(--foreground)] tracking-tight">
+          Welcome back.
+        </h1>
+        <p className="text-sm text-[color:var(--foreground-muted)] mt-1">
+          Here&apos;s what&apos;s happening with your documents.
+        </p>
       </div>
 
       {/* KPI Cards */}
@@ -108,7 +112,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div
           onClick={() => router.push('/documents')}
-          className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-indigo-500 p-5 hover:shadow-md hover:ring-slate-900/10 cursor-pointer transition-shadow"
+          className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-[color:var(--brand)] p-5 hover:shadow-md hover:ring-slate-900/10 cursor-pointer transition-shadow"
         >
           <p className="text-sm text-slate-500 dark:text-slate-400">Total Documents</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.total ?? 0}</p>
@@ -128,7 +132,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-indigo-500 p-5">
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-[color:var(--brand)] p-5">
           <p className="text-sm text-slate-500 dark:text-slate-400">Avg. Confidence</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.avgConfidence ?? 0}%</p>
         </div>
@@ -143,7 +147,7 @@ export default function DashboardPage() {
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{kpis?.rejectionRate ?? 0}%</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-indigo-500 p-5">
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 border-l-4 border-[color:var(--brand)] p-5">
           <p className="text-sm text-slate-500 dark:text-slate-400">Avg. Processing</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{formatSeconds(kpis?.avgProcessingTimeSec ?? 0)}</p>
         </div>
@@ -171,30 +175,30 @@ export default function DashboardPage() {
       )}
 
       {/* Bottom: Upload CTA + Audit logs */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-        {/* Upload CTA - 3/5 width */}
+        {/* Upload CTA - 3/5 width on lg */}
         <Link
           href="/upload"
-          className="col-span-5 lg:col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-6 hover:ring-indigo-300 dark:hover:ring-indigo-700 hover:shadow-md transition-all flex items-center gap-5"
+          className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-6 hover:ring-[color:var(--brand)] dark:hover:ring-[color:var(--brand)] hover:shadow-md transition-all flex items-center gap-5"
         >
-          <div className="w-12 h-12 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-12 h-12 rounded-lg bg-[color:var(--brand-soft)] flex items-center justify-center shrink-0 text-[color:var(--brand)]">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
                 d="M7 16a4 4 0 01-.88-7.9A5 5 0 0117.9 8a4.5 4.5 0 01-.4 8.94M12 12v9m0 0l-3-3m3 3l3-3" />
             </svg>
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Upload a document</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Send invoices, certificates, or reports through OCR + AI extraction.</p>
+            <p className="text-sm font-semibold text-[color:var(--foreground)]">Upload a document</p>
+            <p className="text-xs text-[color:var(--foreground-muted)] mt-0.5">Send invoices, certificates, or reports through OCR + AI extraction.</p>
           </div>
-          <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-[color:var(--foreground-faint)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </Link>
 
-        {/* Audit logs - 2/5 width */}
-        <div className="col-span-5 lg:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
+        {/* Audit logs - 2/5 width on lg */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Recent Audit Logs</p>
             <Link href="/audit" className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium transition-colors">

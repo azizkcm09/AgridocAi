@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { TableRowSkeleton } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
+import ErrorState from '@/components/ErrorState';
 
 type AuditLog = {
   id: string;
@@ -32,6 +33,7 @@ export default function AuditPage() {
   const [logs, setLogs]         = useState<AuditLog[]>([]);
   const [total, setTotal]       = useState(0);
   const [loading, setLoading]   = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [page, setPage]         = useState(1);
   const [actionFilter, setActionFilter] = useState('ALL');
 
@@ -42,6 +44,7 @@ export default function AuditPage() {
     currentAction: string,
   ) => {
     setLoading(true);
+    setFetchError(false);
     try {
       const params = new URLSearchParams();
       params.set('page', String(currentPage));
@@ -51,12 +54,17 @@ export default function AuditPage() {
       const res = await api.get(`/audit?${params.toString()}`);
       setLogs(res.data.data);
       setTotal(res.data.total);
-    } catch {
-      router.push('/login');
+    } catch (err: any) {
+      // 401 is already handled by the axios interceptor (it redirects to
+      // /login). For other failures show a retryable error state rather
+      // than silently emptying the page or bouncing the user out.
+      if (err?.response?.status !== 401) {
+        setFetchError(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     fetchLogs(page, actionFilter);
@@ -121,11 +129,21 @@ export default function AuditPage() {
           <tbody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
+            ) : fetchError ? (
+              <tr>
+                <td colSpan={4}>
+                  <ErrorState
+                    title="Could not load audit logs"
+                    description="The server is unreachable or returned an error."
+                    onRetry={() => fetchLogs(page, actionFilter)}
+                  />
+                </td>
+              </tr>
             ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={4}>
                   <EmptyState
-                    icon={<svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                    icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
                     title="No activity yet"
                     description="Actions on your documents will appear here."
                   />

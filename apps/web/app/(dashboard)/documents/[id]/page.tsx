@@ -9,6 +9,7 @@ import Modal from '@/components/Modal';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import PdfViewer from '@/components/PdfViewer';
 import { DetailPanelSkeleton } from '@/components/Skeleton';
+import StatusBadge from '@/components/StatusBadge';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -26,6 +27,8 @@ type DocumentDetail = {
   size: number;
   status: string;
   type: string;
+  detectedType: string | null;
+  classificationConfidence: number | null;
   createdAt: string;
   extractedData: {
     payload: Record<string, any>;
@@ -39,6 +42,20 @@ type DocumentDetail = {
     timestamp: string;
   }[];
 };
+
+const OVERRIDE_TYPE_OPTIONS = ['INVOICE', 'CERTIFICATE', 'REPORT', 'UNKNOWN'] as const;
+type OverrideType = (typeof OVERRIDE_TYPE_OPTIONS)[number];
+
+function classificationTone(value: number | null) {
+  if (value === null || value === undefined) return 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
+  if (value >= 85) return 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+  if (value >= 60) return 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+  return 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400';
+}
+
+function humanizeType(type: string) {
+  return type.charAt(0) + type.slice(1).toLowerCase();
+}
 
 // Field definitions per document type — label, key, input type, required
 type FieldDef = {
@@ -85,15 +102,6 @@ const FIELD_DEFS: Record<string, FieldDef[]> = {
   ],
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING:          'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-  PROCESSING:       'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-  REVIEW_REQUIRED:  'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-  VALIDATED:        'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
-  REJECTED:         'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
-  ERROR:            'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400',
-};
-
 const ACTION_COLORS: Record<string, string> = {
   UPLOAD:        'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
   AUTO_EXTRACT:  'bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400',
@@ -122,6 +130,11 @@ export default function DocumentDetailPage() {
   const [naFieldKey, setNaFieldKey] = useState<string | null>(null);
   const [naReason, setNaReason] = useState('');
   const [naLoading, setNaLoading] = useState(false);
+
+  // Type-override state (user disagrees with the AI's classification)
+  const [typeOverrideOpen, setTypeOverrideOpen] = useState(false);
+  const [pendingType, setPendingType] = useState<OverrideType>('INVOICE');
+  const [typeOverrideLoading, setTypeOverrideLoading] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -220,6 +233,31 @@ export default function DocumentDetailPage() {
     }
   }
 
+  // Apply a manual document-type override. Wipes the existing payload so the
+  // HITL form starts fresh against the new type's schema.
+  async function confirmTypeOverride() {
+    if (!doc) return;
+    if (pendingType === doc.type) {
+      setTypeOverrideOpen(false);
+      return;
+    }
+    setTypeOverrideLoading(true);
+    try {
+      await api.patch(`/documents/${id}/type`, { type: pendingType });
+      addToast(`Document type changed to ${humanizeType(pendingType)}.`, 'success');
+      setTypeOverrideOpen(false);
+      // reset() inside loadDocument() will replace the form values with the
+      // newly-blanked payload, so the user sees the right schema's fields.
+      reset({});
+      await loadDocument();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      addToast(typeof msg === 'string' ? msg : 'Failed to change type.', 'error');
+    } finally {
+      setTypeOverrideLoading(false);
+    }
+  }
+
   // Reject document via modal
   async function confirmReject() {
     setSaving(true);
@@ -310,15 +348,34 @@ export default function DocumentDetailPage() {
     <div className="space-y-4">
 
       {/* ── BREADCRUMB + STATUS ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Breadcrumbs items={[
           { label: 'Documents', href: '/documents' },
           { label: doc.originalName },
         ]} />
-        <div className="flex items-center gap-3">
-          <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${STATUS_COLORS[doc.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-            {doc.status.replace(/_/g, ' ')}
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusBadge status={doc.status} />
+
+
+          {/* AI classification result — only shown when the classifier ran. */}
+          {doc.detectedType && (
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${classificationTone(doc.classificationConfidence)}`}
+              title="Document type detected by the AI classifier"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>
+                Detected: {humanizeType(doc.detectedType)}
+                {doc.classificationConfidence !== null && doc.classificationConfidence !== undefined && (
+                  <> ({Math.round(doc.classificationConfidence)}%)</>
+                )}
+              </span>
+            </span>
+          )}
+
           {/* Confidence bar */}
           <div className="flex items-center gap-2">
             <div className="w-20 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -332,11 +389,15 @@ export default function DocumentDetailPage() {
         </div>
       </div>
 
-      {/* ── MAIN SPLIT LAYOUT ── */}
-      <div className="grid grid-cols-5 gap-4" style={{ height: 'calc(100vh - 220px)' }}>
+      {/* ── MAIN SPLIT LAYOUT ──
+          On wide screens we keep the original 3/5 + 2/5 split. Below `lg`
+          we stack the preview on top and the form below so the page still
+          works on a tablet or phone.
+      */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:h-[calc(100vh-220px)]">
 
-        {/* Left: Document Preview — 3/5 */}
-        <div className="col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 flex flex-col overflow-hidden">
+        {/* Left: Document Preview — 3/5 on lg, full width below */}
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 flex flex-col overflow-hidden h-[60vh] lg:h-auto">
 
           <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -389,13 +450,28 @@ export default function DocumentDetailPage() {
           </div>
         </div>
 
-        {/* Right: Extracted Data — 2/5 */}
-        <div className="col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 flex flex-col overflow-hidden">
+        {/* Right: Extracted Data — 2/5 on lg, full width below */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 flex flex-col overflow-hidden min-h-[60vh] lg:min-h-0">
 
           <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Extracted Data</h2>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">{doc.type}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">{doc.type}</span>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingType(doc.type as OverrideType);
+                      setTypeOverrideOpen(true);
+                    }}
+                    className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                    title="The AI guessed wrong? Change the type."
+                  >
+                    Change
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Completeness bar */}
@@ -528,17 +604,44 @@ export default function DocumentDetailPage() {
                 </div>
               )}
 
-              {/* No data yet */}
+              {/* No data yet — a deliberate "AI is working" surface while the
+                  document is in PENDING/PROCESSING, otherwise a quiet empty
+                  state. The page polls every 3s, so this view auto-swaps for
+                  the form as soon as the callback lands. */}
               {!hasData && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <svg className="w-10 h-10 text-slate-200 dark:text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <p className="text-sm text-slate-400">No extracted data yet.</p>
-                  <p className="text-xs text-slate-300 dark:text-slate-500 mt-1">
-                    {doc.status === 'PROCESSING' ? 'AI is currently processing...' : 'Data will appear after AI extraction completes.'}
-                  </p>
+                  {doc.status === 'PROCESSING' || doc.status === 'PENDING' ? (
+                    <>
+                      <div className="relative w-14 h-14 mb-4">
+                        <span className="absolute inset-0 rounded-full bg-[color:var(--brand-soft)] animate-ping opacity-60" />
+                        <span className="absolute inset-1 rounded-full bg-[color:var(--brand-soft)]" />
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <svg className="w-6 h-6 text-[color:var(--brand)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 14a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-[color:var(--foreground)]">
+                        Classifying and extracting…
+                      </p>
+                      <p className="text-xs text-[color:var(--foreground-muted)] mt-1 max-w-[18rem]">
+                        OCR runs first, then the model decides the document type and
+                        pulls the relevant fields. This panel will refresh on its own.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-10 h-10 text-[color:var(--foreground-faint)] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      <p className="text-sm text-[color:var(--foreground-muted)]">No extracted data yet.</p>
+                      <p className="text-xs text-[color:var(--foreground-faint)] mt-1">
+                        Data will appear after AI extraction completes.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -659,6 +762,62 @@ export default function DocumentDetailPage() {
             className="flex-1 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
           >
             {naLoading ? 'Saving...' : 'Confirm N/A'}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Type override modal */}
+      <Modal
+        open={typeOverrideOpen}
+        onClose={() => setTypeOverrideOpen(false)}
+        title="Change Document Type"
+      >
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+          The AI classified this document as{' '}
+          <span className="font-medium text-slate-800 dark:text-slate-200">
+            {humanizeType(doc.type)}
+          </span>
+          {doc.detectedType && doc.classificationConfidence !== null && (
+            <> with {Math.round(doc.classificationConfidence ?? 0)}% confidence</>
+          )}
+          .
+        </p>
+        <p className="text-xs text-slate-400 mb-4">
+          Pick the correct type. The current extracted fields will be cleared so
+          you can re-enter them against the new schema.
+        </p>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {OVERRIDE_TYPE_OPTIONS.map((opt) => {
+            const isActive = pendingType === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setPendingType(opt)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  isActive
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                {humanizeType(opt)}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setTypeOverrideOpen(false)}
+            className="flex-1 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmTypeOverride}
+            disabled={typeOverrideLoading || pendingType === doc.type}
+            className="flex-1 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            {typeOverrideLoading ? 'Updating...' : 'Confirm change'}
           </button>
         </div>
       </Modal>
