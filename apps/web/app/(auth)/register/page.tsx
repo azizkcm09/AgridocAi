@@ -49,11 +49,13 @@ export default function RegisterPage() {
         <img src="/logo.png" alt="AgriDoc" className="w-11 h-11" />
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-800 p-8">
+      <div className="card-accent bg-[color:var(--surface)] rounded-lg shadow-sm ring-1 ring-[color:var(--border)] p-8">
 
         <div className="mb-6 text-center">
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Create account</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Get started with AgriDoc</p>
+          <h1 className="font-display text-2xl font-semibold text-[color:var(--foreground)] tracking-tight">
+            Create account
+          </h1>
+          <p className="mt-1 text-sm text-[color:var(--foreground-muted)]">Get started with AgriDoc</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -108,15 +110,15 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="w-full py-2.5 bg-[color:var(--brand)] text-[color:var(--brand-contrast)] text-sm font-medium rounded-md hover:bg-[color:var(--brand-strong)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {isSubmitting ? 'Creating account...' : 'Create account'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-6 text-center text-sm text-[color:var(--foreground-muted)]">
           Already have an account?{' '}
-          <Link href="/login" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium">
+          <Link href="/login" className="text-[color:var(--brand)] hover:text-[color:var(--brand-strong)] font-medium">
             Sign in
           </Link>
         </p>
