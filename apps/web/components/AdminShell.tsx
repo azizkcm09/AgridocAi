@@ -63,6 +63,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const [mounted, setMounted]     = useState(false);
   const [adminName, setAdminName] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -70,6 +71,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     if (getUserRole() !== 'ADMIN') { router.replace('/dashboard'); return; }
     setAdminName(getUserName());
   }, [router]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   function handleLogout() {
     clearToken();
@@ -88,8 +93,21 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
 
+      {/* Mobile drawer scrim */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden animate-fade-in"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* ── SIDEBAR (always dark) ── */}
-      <aside className="w-56 shrink-0 bg-slate-900 flex flex-col">
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-60 bg-slate-900 flex flex-col transform transition-transform md:static md:translate-x-0 md:w-56 md:shrink-0 ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
 
         {/* Brand */}
         <div className="px-5 pt-6 pb-5 border-b border-slate-800">
@@ -110,7 +128,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                 href={item.href}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-[color:var(--brand)] text-[color:var(--brand-contrast)]'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
@@ -151,8 +169,18 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Topbar */}
-        <header className="h-12 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+        <header className="h-12 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0">
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="md:hidden w-8 h-8 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors"
+              aria-label="Open navigation"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             <span>Admin</span>
             {currentNav && currentNav.href !== '/admin' && (
               <>
@@ -161,7 +189,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               </>
             )}
           </div>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-400 bg-slate-100 px-2 py-1 rounded">
+          <span className="hidden sm:inline-block text-[10px] font-medium uppercase tracking-widest text-slate-400 bg-slate-100 px-2 py-1 rounded">
             Restricted Access
           </span>
         </header>

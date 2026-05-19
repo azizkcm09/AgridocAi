@@ -82,7 +82,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [mounted, setMounted] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
+
+  // Close the mobile drawer whenever the route changes so the user does not
+  // have to dismiss it manually after tapping a nav link.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   const { data: profileData } = useSWR<{ id: string; email: string; name: string | null; avatarPath: string | null }>(
     mounted ? '/users/profile' : null,
@@ -159,10 +166,23 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const displayName = profileData?.name ?? getUserName() ?? email ?? 'User';
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-[color:var(--background)] overflow-hidden">
+
+      {/* ── Mobile drawer scrim ── */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden animate-fade-in"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* ── SIDEBAR ── */}
-      <aside className="w-60 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col">
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[color:var(--surface)] border-r border-[color:var(--border)] flex flex-col transform transition-transform md:static md:translate-x-0 md:w-60 md:shrink-0 ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
 
         {/* Brand */}
         <div className="h-14 flex items-center px-5 border-b border-slate-100 dark:border-slate-800">
@@ -185,11 +205,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                       href={item.href}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-all ${
                         isActive
-                          ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                          ? 'bg-[color:var(--brand-soft)] text-[color:var(--brand)]'
+                          : 'text-[color:var(--foreground-muted)] hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--foreground)]'
                       }`}
                     >
-                      <span className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}>
+                      <span className={isActive ? 'text-[color:var(--brand)]' : 'text-[color:var(--foreground-faint)]'}>
                         {item.icon}
                       </span>
                       {item.label}
@@ -207,8 +227,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             {avatarUrl ? (
               <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">
+              <div className="w-7 h-7 rounded-full bg-[color:var(--brand-soft)] flex items-center justify-center shrink-0">
+                <span className="text-xs font-semibold text-[color:var(--brand)]">
                   {displayName.charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -235,17 +255,31 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
-          <div className={`relative w-72 ${pathname.startsWith('/documents') ? 'invisible' : ''}`}>
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search documents..."
-              onKeyDown={handleSearch}
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
-            />
+        <header className="h-14 bg-[color:var(--surface)] border-b border-[color:var(--border)] flex items-center justify-between px-4 sm:px-6 shrink-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Hamburger — only below md */}
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="md:hidden w-9 h-9 rounded-md flex items-center justify-center text-[color:var(--foreground-muted)] hover:bg-[color:var(--surface-muted)] transition-colors"
+              aria-label="Open navigation"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            <div className={`relative w-full max-w-md hidden sm:block ${pathname.startsWith('/documents') ? 'sm:invisible' : ''}`}>
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--foreground-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search documents..."
+                onKeyDown={handleSearch}
+                className="w-full pl-9 pr-4 py-1.5 bg-[color:var(--surface-muted)] border border-[color:var(--border)] rounded-md text-sm text-[color:var(--foreground)] placeholder-[color:var(--foreground-faint)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -288,7 +322,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                   <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Ready for Review</p>
                     {reviewDocs.length > 0 && (
-                      <button onClick={markAllRead} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium">
+                      <button onClick={markAllRead} className="text-xs text-[color:var(--brand)] hover:text-[color:var(--brand-strong)] font-medium">
                         Mark all read
                       </button>
                     )}
@@ -350,7 +384,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </div>
 
             {/* Separator */}
-            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+            <div className="w-px h-5 bg-[color:var(--border)] mx-1" />
 
             {/* User avatar */}
             <Link href="/settings" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
