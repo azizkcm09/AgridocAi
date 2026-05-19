@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, DocumentType } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { BadRequestException } from '@nestjs/common';
@@ -395,6 +395,62 @@ export class DocumentsService {
     });
   }
 
+  // --- UPDATE: Manually override the AI's detected document type ---
+  // When the classifier guesses wrong, the user can switch the type from
+  // the document detail page. This re-points the Zod schema used by HITL
+  // validation and clears the now-incompatible extracted payload so the
+  // user starts the form fresh against the right schema. The original
+  // detectedType / classificationConfidence stay untouched so the audit
+  // trail still shows what the AI thought.
+  async overrideDocumentType(id: string, userId: string, newType: DocumentType) {
+    const document = await this.prisma.document.findFirst({
+      where: { id, userId, deletedAt: null },
+      include: { extractedData: true },
+    });
+
+    if (!document) throw new NotFoundException('Document not found');
+
+    if (document.type === newType) {
+      return { message: 'Document type unchanged', type: newType };
+    }
+
+    const previousType = document.type;
+    const previousPayload = (document.extractedData?.payload ?? null) as Prisma.JsonValue | null;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.document.update({
+        where: { id },
+        data: { type: newType },
+      });
+
+      // Wipe the existing payload and overrides — the form fields differ
+      // per type so keeping the old values would surface in the wrong
+      // schema (and could mask a required-field check).
+      if (document.extractedData) {
+        await tx.extractedData.update({
+          where: { documentId: id },
+          data: {
+            payload: {},
+            fieldOverrides: Prisma.JsonNull,
+          },
+        });
+      }
+    });
+
+    await this.audit.logAction({
+      userId,
+      documentId: id,
+      action: 'UPDATE_FIELD',
+      description: `User changed document type from ${previousType} to ${newType}`,
+      oldValue: { type: previousType, payload: previousPayload },
+      newValue: { type: newType },
+    });
+
+    await this.clearStatsCache(userId);
+
+    return { message: 'Document type updated', type: newType };
+  }
+
   // --- UPDATE: Mark a field as N/A (not applicable) ---
   async setFieldOverride(
     id: string,
@@ -702,19 +758,60 @@ export class DocumentsService {
     return { buffer: result, count: documents.length };
   }
 
-  // --- CALLBACK: Receive extraction results from the AI service ---
+  /**
+   * Receive extraction results from the AI service.
+   *
+   * The AI service calls this endpoint with the extracted payload and, when
+   * it ran a classifier (i.e. the document was uploaded as UNKNOWN), the
+   * detected type and the classifier's 0-100 confidence.
+   *
+   * Type adoption rule: if the user uploaded the document as UNKNOWN we
+   * promote the AI's detectedType to `Document.type` so downstream Zod
+   * validation (in updateExtractedData) picks the right schema. If the user
+   * had explicitly picked a type at upload time we trust their choice and
+   * only store detectedType / classificationConfidence as metadata.
+   *
+   * The document always transitions to REVIEW_REQUIRED. There is no
+   * straight-through processing — HITL is mandatory.
+   */
   async handleExtractionCallback(
     documentId: string,
-    dto: { payload: Record<string, any>; confidence: number; rawText?: string },
+    dto: {
+      payload: Record<string, any>;
+      confidence: number;
+      rawText?: string;
+      detectedType?: DocumentType;
+      classificationConfidence?: number;
+    },
   ) {
-    // 1. Check the document exists and is currently being processed
     const document = await this.prisma.document.findUnique({
       where: { id: documentId },
     });
 
     if (!document) throw new NotFoundException('Document not found');
 
-    // 2. Save extracted data + update status in one transaction
+    // When the user uploaded as UNKNOWN we adopt the AI's classification as
+    // the canonical document type, so downstream Zod validation (in
+    // updateExtractedData) picks the right schema. When the user picked a
+    // type explicitly we keep it — only fill in detectedType / confidence.
+    const shouldAdoptDetectedType =
+      document.type === DocumentType.UNKNOWN &&
+      dto.detectedType !== undefined &&
+      dto.detectedType !== null;
+
+    const documentUpdate: Prisma.DocumentUpdateInput = {
+      status: 'REVIEW_REQUIRED',
+    };
+    if (dto.detectedType !== undefined) {
+      documentUpdate.detectedType = dto.detectedType;
+    }
+    if (dto.classificationConfidence !== undefined) {
+      documentUpdate.classificationConfidence = dto.classificationConfidence;
+    }
+    if (shouldAdoptDetectedType) {
+      documentUpdate.type = dto.detectedType;
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.extractedData.upsert({
         where: { documentId },
@@ -724,16 +821,23 @@ export class DocumentsService {
 
       await tx.document.update({
         where: { id: documentId },
-        data: { status: 'REVIEW_REQUIRED' },
+        data: documentUpdate,
       });
     });
 
-    // 3. Audit trail — record that AI extraction completed
+    const classificationSummary =
+      dto.detectedType !== undefined
+        ? ` Detected type: ${dto.detectedType}` +
+          (dto.classificationConfidence !== undefined
+            ? ` (${Math.round(dto.classificationConfidence)}%).`
+            : '.')
+        : '';
+
     await this.audit.logAction({
       documentId,
       userId: document.userId,
       action: 'AUTO_EXTRACT',
-      description: `AI extraction complete. Confidence: ${dto.confidence}%`,
+      description: `AI extraction complete. Confidence: ${dto.confidence}%.${classificationSummary}`,
       newValue: dto.payload,
     });
 

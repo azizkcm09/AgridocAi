@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsObject, IsNumber, IsString, IsOptional, Min, Max } from 'class-validator';
+import { DocumentType } from '@prisma/client';
+import {
+  IsObject,
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsEnum,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class ExtractionCallbackDto {
   @ApiProperty({
@@ -9,7 +18,7 @@ export class ExtractionCallbackDto {
   @IsObject()
   payload: Record<string, any>;
 
-  @ApiProperty({ example: 85, description: 'Confidence score 0-100' })
+  @ApiProperty({ example: 85, description: 'Extraction confidence 0-100' })
   @IsNumber()
   @Min(0)
   @Max(100)
@@ -22,4 +31,23 @@ export class ExtractionCallbackDto {
   @IsOptional()
   @IsString()
   rawText?: string;
+
+  @ApiPropertyOptional({
+    enum: DocumentType,
+    description:
+      'Document type chosen by the AI classifier (only set when the document was uploaded as UNKNOWN).',
+  })
+  @IsOptional()
+  @IsEnum(DocumentType)
+  detectedType?: DocumentType;
+
+  @ApiPropertyOptional({
+    example: 94,
+    description: 'Classifier confidence 0-100 (only set when classification ran).',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  classificationConfidence?: number;
 }

@@ -68,6 +68,13 @@ model Document {
   status       DocumentStatus @default(PENDING)
   type         DocumentType   @default(UNKNOWN)
 
+  // Set by the AI service when the user uploads without picking a type.
+  // `detectedType` is whatever the classifier returned (mirrors `type` once
+  // applied), `classificationConfidence` is the classifier's confidence as a
+  // 0-100 percentage so it lines up with the existing extraction confidence.
+  detectedType             DocumentType?
+  classificationConfidence Float?
+
   // Relations
   userId       String
   user         User           @relation(fields: [userId], references: [id])

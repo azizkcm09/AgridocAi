@@ -1,3 +1,16 @@
+/**
+ * BullMQ worker for the AI extraction pipeline.
+ *
+ * The processor is intentionally fire-and-forget: it POSTs the job to the
+ * FastAPI worker, marks the document PROCESSING, then exits. The actual
+ * extraction can take seconds, so awaiting it here would tie up Nest
+ * workers and starve the queue. The Python service calls us back at
+ * `POST /documents/:id/extraction-callback` when it is done — that path is
+ * where the document transitions to REVIEW_REQUIRED.
+ *
+ * If the AI service returns a non-2xx on the initial POST we surface the
+ * error, mark the document ERROR, and let BullMQ retry per its job config.
+ */
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
@@ -35,7 +48,11 @@ export class DocumentsProcessor extends WorkerHost {
       description: 'Background worker started processing document',
     });
 
-    // Step 2: Read document type from DB
+    // Step 2: Read the document type from the DB. When the type is UNKNOWN
+    // we pass it through verbatim so the AI service runs its classifier
+    // first; otherwise the AI service trusts the caller's choice and skips
+    // classification. The classifier's result is persisted by
+    // handleExtractionCallback in documents.service.ts.
     const document = await this.prisma.document.findUnique({
       where: { id: documentId },
     });

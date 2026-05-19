@@ -14,6 +14,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { DocumentType } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/public.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -203,7 +205,28 @@ export class DocumentsController {
     return this.documentsService.updateExtractedData(id, req.user.userId, updateDataDto);
   }
 
-  // --- 10. Mark a field as N/A ---
+  // --- 10. Manually override the AI's document type ---
+  @Patch(':id/type')
+  @ApiOperation({ summary: 'Override the AI-detected document type' })
+  overrideType(
+    @Param('id') id: string,
+    @Body() body: { type: string },
+    @Req() req: any,
+  ) {
+    const normalized = String(body?.type ?? '').toUpperCase();
+    if (!(normalized in DocumentType)) {
+      throw new BadRequestException(
+        `Invalid document type. Allowed values: ${Object.keys(DocumentType).join(', ')}`,
+      );
+    }
+    return this.documentsService.overrideDocumentType(
+      id,
+      req.user.userId,
+      normalized as DocumentType,
+    );
+  }
+
+  // --- 11. Mark a field as N/A ---
   @Patch(':id/field-override')
   @ApiOperation({ summary: 'Mark a field as N/A (not applicable on this document)' })
   setFieldOverride(
