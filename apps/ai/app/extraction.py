@@ -1,13 +1,26 @@
 """
-Field extraction — sends OCR text to the LLM and parses the JSON response.
+Two-stage document understanding — classify the document, then extract its fields.
 
-Before (regex):  brittle patterns that only worked for invoices.
-After  (LLM):    prompt engineering handles all doc types, OCR noise, and layout variations.
+The pipeline is split in two so the upload UI does not have to ask the user
+to pick a document type manually. When the API forwards a document with type
+UNKNOWN, the AI service runs `classify()` first, then dispatches to the right
+type-specific extractor via `extract_fields()`.
 
-Flow:
-  1. get_prompt() builds the right prompt for the document type
-  2. ask() sends it to Groq (Llama 3.3 70B)
-  3. We parse the JSON response and compute a confidence score
+Flow when type is UNKNOWN:
+  1. classify(ocr_text) -> {type, confidence}  (cheap call, page-1 only)
+  2. extract_fields(type, ocr_text) -> (payload, confidence)  (full extraction)
+
+Flow when caller already knows the type (legacy/explicit path):
+  1. extract_fields(type, ocr_text)  (skip classification)
+
+Two distinct confidence numbers are surfaced:
+  - classification confidence — how sure the model is about the *type*.
+  - extraction confidence — how *complete* the extracted payload is, scored
+    locally with a per-field weight table in FIELD_WEIGHTS.
+
+They are kept separate because a document can be confidently classified
+but poorly extracted (e.g. bottom of the page cropped in the scan), and
+the UI shows both so the reviewer knows which part the AI was unsure about.
 """
 
 import json
@@ -15,7 +28,7 @@ import logging
 import re
 
 from llm import ask
-from prompts import get_prompt
+from prompts import classify_prompt, get_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +121,57 @@ def _parse_llm_response(raw_response: str) -> dict:
         logger.warning(f"Failed to parse LLM response as JSON: {e}")
         logger.debug(f"Raw response was: {raw_response[:500]}")
         return {}
+
+
+# Length cap fed to the classifier — page 1 is usually well under this in
+# OCR-text terms, and the classifier only needs a few hundred characters to
+# decide. Keeps the prompt cheap and predictable.
+_CLASSIFY_TEXT_CAP = 3000
+
+# Valid output classes the classifier is allowed to produce
+_VALID_TYPES = {"INVOICE", "CERTIFICATE", "REPORT", "UNKNOWN"}
+
+
+def classify(text: str) -> dict:
+    """
+    First-pass document classification.
+
+    Returns:
+        {
+          "type": "INVOICE" | "CERTIFICATE" | "REPORT" | "UNKNOWN",
+          "confidence": 0.0 - 1.0,
+          "reasoning": "string"
+        }
+
+    Falls back to UNKNOWN with confidence 0.0 when the LLM response cannot
+    be parsed — the document still gets routed to the UNKNOWN extractor and
+    HITL handles the rest.
+    """
+    snippet = (text or "")[:_CLASSIFY_TEXT_CAP]
+    if not snippet.strip():
+        logger.warning("classify(): empty OCR text, returning UNKNOWN")
+        return {"type": "UNKNOWN", "confidence": 0.0, "reasoning": "Empty OCR text"}
+
+    prompt = classify_prompt(snippet)
+    logger.info(f"Classifying document ({len(snippet)} chars sent to LLM)")
+    raw_response = ask(prompt)
+    parsed = _parse_llm_response(raw_response)
+
+    detected = str(parsed.get("type", "UNKNOWN")).upper().strip()
+    if detected not in _VALID_TYPES:
+        logger.warning(f"classify(): LLM returned invalid type '{detected}', falling back to UNKNOWN")
+        detected = "UNKNOWN"
+
+    try:
+        confidence = float(parsed.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    confidence = max(0.0, min(1.0, confidence))
+
+    reasoning = str(parsed.get("reasoning", "")).strip()[:300]
+
+    logger.info(f"Classified as {detected} (confidence={confidence:.2f})")
+    return {"type": detected, "confidence": confidence, "reasoning": reasoning}
 
 
 def extract_fields(document_type: str, text: str) -> tuple:

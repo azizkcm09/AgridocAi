@@ -148,6 +148,62 @@ def report_prompt(ocr_text: str) -> str:
     )
 
 
+def classify_prompt(ocr_text: str) -> str:
+    """
+    Prompt for first-pass document classification.
+
+    The classifier looks at the first chunk of OCR text and decides which of
+    the four supported document classes the document belongs to. It is run
+    before the type-specific extraction so the upload UI no longer has to
+    ask the user to pick the type manually.
+
+    Returns JSON of shape:
+        {
+          "type": "INVOICE" | "CERTIFICATE" | "REPORT" | "UNKNOWN",
+          "confidence": 0.0 - 1.0,
+          "reasoning": "string — one short sentence justifying the choice"
+        }
+    """
+    return (
+        "You are a document classifier for agrifood and supply chain operations. "
+        "You will receive raw OCR text extracted from a scanned document. "
+        "Your job is to decide which class the document belongs to.\n\n"
+        "Classes:\n"
+        "- INVOICE — commercial invoices, bills, purchase orders with a vendor, "
+        "a buyer, a total amount and (usually) line items.\n"
+        "- CERTIFICATE — compliance certificates such as phytosanitary, organic, "
+        "HACCP, ISO 22000, halal, kosher, food safety. They have an issuing "
+        "authority, a holder and an issue date.\n"
+        "- REPORT — lab analysis reports, quality inspection reports, audit "
+        "reports. They contain test results, findings, a conclusion (PASS/FAIL).\n"
+        "- UNKNOWN — if the document does not clearly match any of the three "
+        "classes above, or if the OCR text is too noisy to decide.\n\n"
+        "Rules:\n"
+        "- Return ONLY a valid JSON object. No markdown, no code fences, no explanation outside the JSON.\n"
+        "- `type` MUST be one of INVOICE, CERTIFICATE, REPORT, UNKNOWN (uppercase).\n"
+        "- `confidence` MUST be a number between 0.0 and 1.0. Use 1.0 only when the document is unambiguous.\n"
+        "- `reasoning` MUST be one short sentence (less than 25 words).\n\n"
+        "Expected JSON shape:\n"
+        "{\n"
+        '  "type": "INVOICE | CERTIFICATE | REPORT | UNKNOWN",\n'
+        '  "confidence": 0.0,\n'
+        '  "reasoning": "string"\n'
+        "}\n\n"
+        "Examples:\n"
+        "Text mentions 'INVOICE N°', 'Total à payer', 'TVA', vendor / buyer addresses → "
+        '{"type":"INVOICE","confidence":0.96,"reasoning":"Contains invoice number, total and VAT lines"}.\n'
+        "Text mentions 'Phytosanitary Certificate', 'Ministry of Agriculture', issue/expiry dates → "
+        '{"type":"CERTIFICATE","confidence":0.94,"reasoning":"Issued by an authority with explicit certificate type and dates"}.\n'
+        "Text mentions 'Pesticide Residue Analysis', 'Conclusion: PASS', batch number, lab name → "
+        '{"type":"REPORT","confidence":0.92,"reasoning":"Lab analysis with test results and a PASS conclusion"}.\n'
+        "Text is a generic letter or unrelated content → "
+        '{"type":"UNKNOWN","confidence":0.3,"reasoning":"No clear matches for invoice, certificate or report fields"}.\n\n'
+        "--- OCR TEXT START ---\n"
+        f"{ocr_text}\n"
+        "--- OCR TEXT END ---\n"
+    )
+
+
 def unknown_prompt(ocr_text: str) -> str:
     """
     Fallback prompt for unclassified documents.

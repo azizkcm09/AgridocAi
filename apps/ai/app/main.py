@@ -12,7 +12,7 @@ from models import ExtractRequest, AcceptedResponse, HealthResponse
 from storage import download_file_from_minio
 from preprocessing import preprocess
 from ocr import run_ocr
-from extraction import extract_fields
+from extraction import classify, extract_fields
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,39 +39,70 @@ def _process_and_callback(storage_path: str, document_type: str, callback_url: s
     1. Download the file from MinIO
     2. Preprocess the image (OpenCV)
     3. Run OCR (Tesseract)
-    4. Extract fields via LLM (Groq)
-    5. POST the results back to NestJS via callbackUrl
+    4. If documentType is UNKNOWN: classify first, then extract with the detected type.
+       Otherwise: trust the caller's type and extract directly.
+    5. POST the results back to NestJS via callbackUrl, including the
+       detectedType + classificationConfidence so the API knows whether the
+       AI decided the type or whether the user pre-selected it.
     """
     local_path = None
     callback_headers = {"x-api-key": os.getenv("AI_CALLBACK_SECRET", "")}
 
     try:
-        logger.info(f"[1/5] Downloading: {storage_path}")
+        logger.info(f"[1/6] Downloading: {storage_path}")
         local_path = download_file_from_minio(storage_path)
 
-        logger.info("[2/5] Running OpenCV preprocessing")
+        logger.info("[2/6] Running OpenCV preprocessing")
         clean_image = preprocess(local_path)
 
-        logger.info("[3/5] Running Tesseract OCR")
+        logger.info("[3/6] Running Tesseract OCR")
         raw_text = run_ocr(clean_image)
         logger.info(f"      Extracted {len(raw_text)} characters")
 
         if not raw_text:
             raise ValueError("OCR returned empty text — document may be unreadable")
 
-        logger.info(f"[4/5] Extracting fields for type: {document_type}")
-        payload, confidence = extract_fields(document_type, raw_text)
-        logger.info(f"      Done. Confidence: {confidence}%")
+        # Classify when the caller did not commit to a type (UNKNOWN means
+        # "let the AI decide"). When a type was explicitly chosen we keep
+        # backwards-compatible behaviour and skip classification.
+        incoming_type = (document_type or "UNKNOWN").upper()
+        classification_confidence: float | None = None
+        detected_type: str | None = None
 
-        # 5. POST results back to NestJS
-        logger.info(f"[5/5] Sending callback to {callback_url}")
+        if incoming_type == "UNKNOWN":
+            logger.info("[4/6] Classifying document (caller sent UNKNOWN)")
+            classification = classify(raw_text)
+            detected_type = classification["type"]
+            classification_confidence = classification["confidence"]
+            effective_type = detected_type
+            logger.info(
+                f"      Detected {detected_type} (confidence={classification_confidence:.2f}) — "
+                f"reasoning: {classification['reasoning']}"
+            )
+        else:
+            logger.info(f"[4/6] Skipping classification (caller pre-selected {incoming_type})")
+            effective_type = incoming_type
+
+        logger.info(f"[5/6] Extracting fields for type: {effective_type}")
+        payload, confidence = extract_fields(effective_type, raw_text)
+        logger.info(f"      Done. Extraction confidence: {confidence}%")
+
+        # 6. POST results back to NestJS
+        logger.info(f"[6/6] Sending callback to {callback_url}")
+        callback_payload = {
+            "payload": payload,
+            "confidence": confidence,
+            "rawText": raw_text,
+        }
+        if detected_type is not None:
+            callback_payload["detectedType"] = detected_type
+            # The API stores classificationConfidence as a 0-100 percentage
+            # so the UI badges line up with the existing extraction confidence.
+            callback_payload["classificationConfidence"] = round(classification_confidence * 100, 2)
+
         response = httpx.post(
             callback_url,
-            json={
-                "payload": payload,
-                "confidence": confidence,
-                "rawText": raw_text,
-            },
+            json=callback_payload,
             headers=callback_headers,
             timeout=15.0,
         )
