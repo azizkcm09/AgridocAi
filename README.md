@@ -1,147 +1,165 @@
-# AgridocAi
-# AgriDoc AI — Monorepo Workspace Organization
+# AgriDoc AI
 
-## Overview
+**AI-powered document management for agrifood & supply-chain operations.**
 
-AgriDoc AI uses a **Monorepo architecture** to host all core services of the platform in a single repository.
-This approach enables **shared domain contracts**, **strong consistency**, and **scalable collaboration**
-between frontend, backend, and AI services.
+AgriDoc AI ingests scanned invoices, certificates and lab reports, runs OCR + a large-language-model extraction pipeline, then routes every document through a Human-in-the-Loop review screen where a reviewer can correct, mark fields as N/A, validate, reject or export. The whole pipeline is asynchronous, observable in an audit log, and designed for the regulatory reality of food and agricultural supply chains.
 
-The monorepo contains three main applications:
-- **Web Application (Next.js)** — Experience Layer
-- **API Backend (NestJS)** — Orchestration Layer
-- **AI Service (Python / FastAPI)** — Intelligence Layer
+> Final-year project — Internship work, 2026.
 
 ---
 
-## Monorepo Philosophy
+## Headline features
 
-The monorepo is designed according to the following principles:
-
-1. **Clear separation of responsibilities** between services  
-2. **Single source of truth** for domain models and enums  
-3. **Contract-driven development** between frontend and backend  
-4. **Zero duplication of domain types**  
-
-Frontend and backend **never redefine the same data structures independently**.
+- **Auto-classification at upload.** The user drops a file; the AI classifies it as `INVOICE` / `CERTIFICATE` / `REPORT` / `UNKNOWN` and reports its confidence — no manual type picker.
+- **OCR + LLM-based field extraction.** OpenCV preprocessing → Tesseract OCR → Groq Llama 3.3 70B with type-specific prompts. Confidence is scored per document.
+- **Human-in-the-Loop validation.** Every extraction lands in `REVIEW_REQUIRED`. The reviewer fills, corrects or marks each field as N/A with a reason, then validates or rejects.
+- **Full audit trail.** Upload, extraction, field updates, validation, rejection and export are all logged with old/new values for compliance.
+- **Batch operations.** Validate, reject, delete or export multiple documents in one transaction.
+- **PDF export.** Single-document or batch export to a combined PDF with cover page, TOC and per-doc sections.
+- **Admin dashboard.** User management, role assignment, deactivation, platform-wide analytics.
+- **Dark mode + responsive UI.** Custom design system (deep botanical olive + warm ochre, Fraunces display + Geist body) works from mobile up.
 
 ---
 
-## Repository Structure
+## Architecture
 
-```txt
-agri-doc-ai/
-│
+```mermaid
+flowchart LR
+  subgraph Client
+    W[Next.js 15<br/>web]
+  end
+  subgraph Backend
+    A[NestJS API]
+    Q[(Redis<br/>BullMQ)]
+  end
+  subgraph AI
+    P[FastAPI<br/>OCR + LLM]
+  end
+  subgraph Storage
+    DB[(PostgreSQL)]
+    S[(MinIO<br/>S3-compatible)]
+  end
+
+  W -- JWT / REST --> A
+  W -- presigned PUT --> S
+  A -- enqueue --> Q
+  Q -- worker --> A
+  A -- POST /extract --> P
+  P -- fetch file --> S
+  P -- callback --> A
+  A -- read/write --> DB
+```
+
+The frontend uploads files directly to MinIO via presigned URLs, then notifies the NestJS API. The API enqueues a BullMQ job that calls the FastAPI worker. The worker downloads the file, OCRs it, classifies it, extracts its fields and POSTs the result back to a callback endpoint on the API. The document is then surfaced in the review queue.
+
+For deeper diagrams (sequence flow, ER model, auth flow), see [docs/architecture.md](docs/architecture.md).
+
+---
+
+## Tech stack
+
+| Layer | Tech |
+|---|---|
+| Web | Next.js 15 (App Router) · React 19 · Tailwind v4 · SWR · react-hook-form · react-pdf · recharts |
+| API | NestJS · Prisma · PostgreSQL · BullMQ · Redis · Passport (JWT) · class-validator · Zod · pdfkit · @nestjs/swagger |
+| AI | FastAPI · Pydantic · OpenCV · Tesseract OCR · Groq SDK (Llama 3.3 70B) · httpx · boto3 |
+| Storage | MinIO (S3-compatible) for documents and avatars |
+| Tooling | pnpm workspaces · TypeScript · ESLint |
+
+---
+
+## Repository layout
+
+```
+AgridocAi/
 ├── apps/
-│   ├── web/              # Next.js Frontend (Experience Layer)
-│   ├── api/              # NestJS Backend (Orchestration Layer)
-│   └── ai/               # Python FastAPI (Intelligence Layer)
-│
-├── packages/
-│   └── shared/           # Shared TypeScript domain contracts
-│
-├── infrastructure/
-│   ├── docker/           # Dockerfiles for services
-│   ├── docker-compose.yml
-│   └── redis/            # Redis / BullMQ configuration
-│
+│   ├── web/    # Next.js frontend — see apps/web/README.md
+│   ├── api/    # NestJS backend  — see apps/api/README.md
+│   └── ai/     # FastAPI worker  — see apps/ai/README.md
 ├── docs/
-│   ├── architecture/     # Architecture decisions
-│   └── diagrams/         # UML, sequence, component diagrams
-│
-├── package.json          # Monorepo root configuration
-├── pnpm-workspace.yaml   # Workspace configuration
+│   └── architecture.md     # diagrams + ADR-style notes
+├── docker-compose.yml      # Postgres, MinIO, Redis
+├── COMMANDS.md             # quick-start cheat sheet
 └── README.md
-Applications (/apps)
-apps/web — Frontend (Next.js)
-apps/web/
-├── app/
-├── components/
-├── services/        # API communication layer
-├── hooks/
-├── types/           # Re-exported shared domain types
-└── package.json
+```
 
-Responsibilities
+Each app is a self-contained workspace with its own `package.json` / `pyproject` and its own README.
 
-User interface (document upload, validation dashboard)
+---
 
-API consumption
+## Prerequisites
 
-Client-side state management
+- **Node.js** 20+
+- **pnpm** 8+
+- **Python** 3.12+ (with `tesseract` installed on the host — `brew install tesseract` on macOS, `apt install tesseract-ocr tesseract-ocr-fra` on Ubuntu)
+- **Docker** (for Postgres / MinIO / Redis via the compose file)
+- A **Groq API key** ([groq.com](https://groq.com)) — free tier is enough for development
 
-Display of extracted data
+---
 
-No business logic
+## Local setup
 
-Uses shared domain contracts from @agri-doc/shared
+The repo runs as four processes in parallel (compose-managed infra, the API, the AI worker, the web app). Open four terminals.
 
-apps/api — Backend (NestJS)
-apps/api/
-├── src/
-│   ├── documents/    # Document lifecycle management
-│   ├── audit/        # Audit logs & traceability
-│   ├── auth/         # Authentication & RBAC
-│   ├── queue/        # Redis / BullMQ jobs
-│   └── main.ts
-├── prisma/           # Database schema & migrations
-└── package.json
+```bash
+# 1. Infrastructure
+docker compose up -d postgres minio redis
 
-Responsibilities
+# 2. Backend
+pnpm install
+pnpm --filter api prisma generate
+pnpm --filter api prisma migrate deploy
+pnpm --filter api dev
 
-Business logic orchestration
+# 3. AI worker (Python venv assumed at apps/ai/.venv)
+cd apps/ai && python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+PYTHONPATH=app uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-Role-Based Access Control (RBAC)
+# 4. Web
+pnpm --filter web dev
+```
 
-Background job scheduling (Redis / BullMQ)
+The web app is at <http://localhost:3001>, the API at <http://localhost:3000>, Swagger docs at <http://localhost:3000/api>, MinIO console at <http://localhost:9001>.
 
-Database transactions (PostgreSQL)
+A friendlier cheat-sheet is in [COMMANDS.md](COMMANDS.md).
 
-AI service coordination
+---
 
-Contract enforcement using shared domain types
+## Environment variables
 
-apps/ai — AI Service (Python / FastAPI)
-apps/ai/
-├── app/
-│   ├── preprocessing/   # Image cleanup & enhancement
-│   ├── ocr/             # OCR extraction logic
-│   ├── llm/             # LLM-based structured parsing
-│   └── main.py
-├── requirements.txt
+Each app reads its own `.env`. The required keys are:
 
-Responsibilities
+| App | Variable | Purpose |
+|---|---|---|
+| `apps/api` | `DATABASE_URL` | Postgres connection string |
+| `apps/api` | `JWT_SECRET` | Sign + verify JWTs |
+| `apps/api` | `AI_SERVICE_URL` | Where the BullMQ worker posts extraction jobs |
+| `apps/api` | `AI_CALLBACK_SECRET` | Shared HMAC-style secret stamped on every AI → API callback |
+| `apps/api` | `API_BASE_URL` | Used to construct the callback URL sent to the AI |
+| `apps/api` | `FRONTEND_URL` | CORS origin |
+| `apps/api` | `S3_ENDPOINT` / `S3_REGION` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_BUCKET` | MinIO connection |
+| `apps/api` | `REDIS_HOST` / `REDIS_PORT` | BullMQ |
+| `apps/ai` | `GROQ_API_KEY` | LLM provider |
+| `apps/ai` | `AI_CALLBACK_SECRET` | Must match the API value above |
+| `apps/ai` | `S3_*` | Same as API, the worker reads files from MinIO directly |
+| `apps/web` | `NEXT_PUBLIC_API_URL` | Where the frontend posts to (defaults to `http://localhost:3000`) |
 
-Image preprocessing (deskewing, denoising)
+A `.env.example` lives next to each app's `.env`.
 
-OCR text extraction
+---
 
-LLM-based JSON structuring
+## What it looks like
 
-Asynchronous communication with backend
+Screenshots are in [`docs/screenshots/`](docs/screenshots/). The four headline screens:
 
-No direct database access
+- **Dashboard** — KPIs, week-over-week change, four analytics charts.
+- **Documents** — paginated table with filters, batch operations, AI confidence chip.
+- **Document detail** — split-pane PDF viewer + Human-in-the-Loop review form with the AI's detected type and a per-field N/A workflow.
+- **Upload** — multi-file drag-and-drop with classification hint, no type picker.
 
-Shared Package (/packages/shared) ⭐
-Purpose
+---
 
-The shared package is the cornerstone of the monorepo.
+## Authors
 
-It contains TypeScript interfaces, DTOs, and enums used by:
-
-Frontend (Next.js)
-
-Backend (NestJS)
-
-This enforces a single source of truth for all domain contracts.
-
-Structure
-packages/shared/
-├── src/
-│   ├── document.types.ts
-│   ├── extracted-data.types.ts
-│   ├── audit-log.types.ts
-│   ├── enums.ts
-│   └── index.ts
-├── package.json
-└── tsconfig.json
+- **Aziz Kacem** — final-year internship, 2026

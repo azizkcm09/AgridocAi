@@ -1,98 +1,101 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# `apps/api` — NestJS Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+The orchestration layer. Owns authentication, the document lifecycle, the queue, the audit trail, and every read from PostgreSQL. The frontend talks to this app, never directly to the AI worker.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Modules
 
-## Description
+| Module | Path | What it owns |
+|---|---|---|
+| `AuthModule` | `src/auth/` | JWT login/register, bcrypt hashing, `JwtAuthGuard`, `RolesGuard`, `@Public()` decorator, `@Roles()` decorator |
+| `UsersModule` | `src/users/` | Profile, avatar upload, password change, activity stats |
+| `DocumentsModule` | `src/documents/` | Full CRUD, soft delete, HITL validation, batch ops, AI callbacks, PDF export |
+| `StorageModule` | `src/storage/` | MinIO presigned URLs for upload + download |
+| `AuditModule` | `src/audit/` | Append-only log of every user/AI action with old/new values |
+| `AdminModule` | `src/admin/` | Platform-wide user/document/audit queries + analytics |
+| `CacheModule` | `src/cache/` | Redis cache wrapper (used by stats + analytics) |
+| `PrismaModule` | `src/prisma/` | Prisma client lifecycle |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Environment variables
 
-## Project setup
+| Key | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | yes | Postgres connection string |
+| `JWT_SECRET` | yes | HMAC secret used by `JwtStrategy` |
+| `AI_SERVICE_URL` | yes | Base URL of the FastAPI worker, e.g. `http://localhost:8000` |
+| `AI_CALLBACK_SECRET` | yes | Shared secret. The AI service sends it back as `x-api-key`; the API rejects callbacks without it |
+| `API_BASE_URL` | yes | Used to compose the `callbackUrl` sent to the AI worker |
+| `FRONTEND_URL` | yes | CORS origin |
+| `S3_ENDPOINT` / `S3_REGION` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_BUCKET` | yes | MinIO connection |
+| `REDIS_HOST` / `REDIS_PORT` | yes | BullMQ |
 
-```bash
-$ pnpm install
-```
-
-## Compile and run the project
+## Running locally
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm --filter api prisma generate
+pnpm --filter api prisma migrate deploy   # apply existing migrations
+pnpm --filter api dev                      # runs on :3000
 ```
 
-## Run tests
+Swagger docs are at <http://localhost:3000/api>.
+
+## Running tests
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm --filter api test
+pnpm --filter api test:e2e
 ```
 
-## Deployment
+Unit specs live next to the files they cover (`*.spec.ts`).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Prisma cheatsheet
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+# After editing prisma/schema.prisma:
+pnpm --filter api prisma migrate dev --name <short_description>
+
+# Regenerate the client without touching the DB:
+pnpm --filter api prisma generate
+
+# Open Prisma Studio (read-only UI on the DB):
+pnpm --filter api prisma studio
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## The AI extraction pipeline (API side)
 
-## Resources
+1. `POST /documents` → `DocumentsService.createDocument` inserts with `status=PENDING`, logs `UPLOAD`, enqueues `extract-data` on the `document-processing` BullMQ queue.
+2. `DocumentsProcessor.process` (`documents.processor.ts`) picks up the job, updates `status=PROCESSING`, then POSTs `{ storagePath, documentType, callbackUrl }` to `${AI_SERVICE_URL}/extract`. Fire-and-forget — it does not await the extraction itself.
+3. The Python worker calls back to `POST /documents/:id/extraction-callback` with an `x-api-key` header. `DocumentsService.handleExtractionCallback` persists the payload, adopts the AI's `detectedType` when the user uploaded as `UNKNOWN`, transitions to `REVIEW_REQUIRED`, and writes an `AUTO_EXTRACT` audit entry.
+4. If the worker fails it calls `POST /documents/:id/extraction-error`, which transitions the document to `ERROR` and logs the failure.
 
-Check out a few resources that may come in handy when working with NestJS:
+## Notable endpoints
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Verb | Path | What |
+|---|---|---|
+| `POST` | `/auth/login`, `/auth/register` | Auth |
+| `POST` | `/storage/presigned-url` | Get a 5-minute MinIO upload URL |
+| `GET` | `/storage/download-url?key=...` | Presigned download URL for the file in the document detail viewer |
+| `POST` | `/documents` | Save metadata after MinIO upload + enqueue extraction |
+| `GET` | `/documents?page=&limit=&type=&status=&search=` | Paginated + filtered list |
+| `GET` | `/documents/analytics` | Dashboard charts + KPIs (60s cache) |
+| `GET` | `/documents/stats` | Dashboard tiles (30s cache) |
+| `GET` | `/documents/:id` | Document + extractedData + auditLogs |
+| `PATCH` | `/documents/:id/data` | HITL validation — Zod-checks the payload, enforces required-or-N/A, sets `status=VALIDATED` |
+| `PATCH` | `/documents/:id/field-override` | Mark a field as N/A with a reason |
+| `DELETE` | `/documents/:id/field-override/:fieldKey` | Remove an N/A override |
+| `PATCH` | `/documents/:id/type` | Override the AI's detected type and reset the payload |
+| `PATCH` | `/documents/:id/reject` | Set `status=REJECTED` with optional reason |
+| `DELETE` | `/documents/:id` | Soft delete (sets `deletedAt`) |
+| `POST` | `/documents/batch/{validate,reject,delete,export}` | Bulk operations |
+| `GET` | `/documents/:id/export` | Per-document PDF export |
+| `POST` | `/documents/:id/extraction-callback` | AI service callback (guarded by `x-api-key`, marked `@Public()` for JWT) |
+| `POST` | `/documents/:id/extraction-error` | AI service error callback |
+| `GET` | `/health` | Health probe — DB + Redis + AI service reachability |
 
-## Support
+A complete list (with request/response shapes) is in Swagger.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Common pitfalls
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **Migration drift.** If `prisma migrate deploy` complains, run `pnpm --filter api prisma migrate resolve --applied <migration_name>` carefully — never `migrate reset` against a real DB.
+- **CORS errors from the web app.** Check `FRONTEND_URL` matches the Next.js dev port (`3001` in this repo).
+- **`AI_CALLBACK_SECRET` mismatch.** The API will return 401 to the worker. Confirm both `.env` files share the same value.
+- **Stuck `PROCESSING` documents.** If the AI worker crashes mid-job, the API has no built-in watcher today. Fix manually (`UPDATE Document SET status='ERROR'...`); a stuck-doc watcher is on the future-work list.
